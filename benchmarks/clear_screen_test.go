@@ -7,9 +7,11 @@ import (
 	"godom/colour"
 )
 
+// ------------------------------------------------------------------------------------------------
 // Colour matches the internal RGBA structure.
 var testColour = colour.Colour{R: 100, G: 150, B: 200, A: 255}
 
+// ------------------------------------------------------------------------------------------------
 // BenchmarkClearScreenNaive benchmarks clearing the canvas using the naive byte-by-byte loop.
 func BenchmarkClearScreenNaive(b *testing.B) {
 	pixels := make([]byte, 1920*1080*4)
@@ -24,7 +26,9 @@ func BenchmarkClearScreenNaive(b *testing.B) {
 	}
 }
 
-// BenchmarkClearScreenOptimized benchmarks clearing the canvas using the optimized exponential copy loop.
+// ------------------------------------------------------------------------------------------------
+// BenchmarkClearScreenOptimized benchmarks clearing the canvas using the optimized exponential 
+// copy loop.
 func BenchmarkClearScreenOptimized(b *testing.B) {
 	pixels := make([]byte, 1920*1080*4)
 	c := &canvas.Canvas{
