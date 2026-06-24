@@ -110,8 +110,8 @@ import (
 pixels := make([]byte, 320*240*4)
 c := canvas.NewCanvas(320, 240, pixels, "app")
 
-c.SetColour(colour.White)
 c.ClearScreen(colour.Black)
+c.SetColour(colour.White)
 c.Line(10, 10, 100, 100)
 c.FilledCircle(160, 120, 50)
 c.Rectangle(200, 50, 80, 60, 2)
