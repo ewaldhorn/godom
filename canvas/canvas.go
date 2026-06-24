@@ -5,8 +5,8 @@ import (
 	"math"
 	"syscall/js"
 
-	"godom/colour"
-	"godom/dom"
+	"github.com/ewaldhorn/godom/colour"
+	"github.com/ewaldhorn/godom/dom"
 )
 
 // ------------------------------------------------------------------------------------------------

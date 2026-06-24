@@ -2,7 +2,7 @@
 package html
 
 import (
-	"godom/dom"
+	"github.com/ewaldhorn/godom/dom"
 	"syscall/js"
 )
 

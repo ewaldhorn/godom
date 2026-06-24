@@ -4,7 +4,7 @@ import (
 	"syscall/js"
 	"testing"
 
-	"godom/colour"
+	"github.com/ewaldhorn/godom/colour"
 )
 
 func init() {

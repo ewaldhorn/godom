@@ -1,7 +1,7 @@
 package canvas
 
 import (
-	"godom/colour"
+	"github.com/ewaldhorn/godom/colour"
 )
 
 // ------------------------------------------------------------------------------------------------

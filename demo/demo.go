@@ -7,11 +7,11 @@ import (
 	"syscall/js"
 	"unsafe"
 
-	"godom/canvas"
-	"godom/colour"
-	"godom/dom"
-	"godom/html"
-	"godom/sound"
+	"github.com/ewaldhorn/godom/canvas"
+	"github.com/ewaldhorn/godom/colour"
+	"github.com/ewaldhorn/godom/dom"
+	"github.com/ewaldhorn/godom/html"
+	"github.com/ewaldhorn/godom/sound"
 )
 
 // ------------------------------------------------------------------------------------------------

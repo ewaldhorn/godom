@@ -3,8 +3,8 @@ package benchmarks
 import (
 	"testing"
 
-	"godom/canvas"
-	"godom/colour"
+	"github.com/ewaldhorn/godom/canvas"
+	"github.com/ewaldhorn/godom/colour"
 )
 
 // ------------------------------------------------------------------------------------------------
