@@ -1,5 +1,5 @@
 /* ============================================================
-   Zigdom Demo — Synthwave Dark Theme
+   Godom Demo — Synthwave Dark Theme
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
@@ -153,7 +153,7 @@ article, aside {
   overflow: hidden;
 }
 
-/* Canvas elements created by Zig scale responsively */
+/* Canvas elements created by Godom scale responsively */
 canvas {
   max-width: 100%;
   height: auto;

@@ -21,7 +21,7 @@ import (
 //go:embed bodystyle.css
 var bodyStyle string
 
-//go:embed zigdom.txt
+//go:embed godom.txt
 var dommieText string
 
 const (

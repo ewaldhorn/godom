@@ -2,7 +2,7 @@
 
 `godom` is a header-less, dependency-free wrapper around the browser DOM and Canvas 2D APIs written in pure Go. It targets standard WebAssembly (`GOOS=js GOARCH=wasm`) and operates using Go 1.26.4's standard `syscall/js` layer.
 
-It was created to prove the feasibility of replicating Zig-based DOM manipulation libraries (like `zigdom`) in Go with zero-allocation canvas updates and low-latency audio pre-rendering.
+It was created to prove the feasibility of zero-allocation canvas updates and low-latency audio pre-rendering with DOM manipulation in Go WebAssembly.
 
 ---
 
@@ -90,7 +90,7 @@ GOOS=js GOARCH=wasm go build -o app.wasm main.go
 
 ## Running the Included Demo
 
-This repository includes a feature-rich, high-performance synthwave physics and audio sequencer demo (migrated from `zigdom`).
+This repository includes a feature-rich, high-performance synthwave physics and audio sequencer demo.
 
 ### Prerequisites
 * Go 1.26.4

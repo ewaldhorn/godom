@@ -1,6 +1,6 @@
 // ------------------------------------------------------------------------------------------------
 // synth-worklet.js — AudioWorkletProcessor: 1980s Retrowave Synthesizer
-// Ported from src/sound.zig (Zig WASM synth) to run on the dedicated audio thread.
+// Ported from Godom's Go sound package to run on the dedicated audio thread.
 // ------------------------------------------------------------------------------------------------
 
 // ------------------------------------------------------------------------------------------------

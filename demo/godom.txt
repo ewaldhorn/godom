@@ -1,0 +1,1 @@
+Godom is just that, a Go library used to mess with the DOM.
