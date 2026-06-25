@@ -31,11 +31,7 @@ func BenchmarkClearScreenNaive(b *testing.B) {
 // copy loop.
 func BenchmarkClearScreenOptimized(b *testing.B) {
 	pixels := make([]byte, 1920*1080*4)
-	c := &canvas.Canvas{
-		Width:  1920,
-		Height: 1080,
-		Pixels: pixels,
-	}
+	c := canvas.NewOffscreenCanvas(1920, 1080, pixels)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		c.ClearScreen(testColour)

@@ -509,8 +509,8 @@ var themes = []Theme{
 }
 
 func performDemoOnCanvasOne() {
-	w := int32(canvasOne.Width)
-	h := int32(canvasOne.Height)
+	w := int32(canvasOne.Width())
+	h := int32(canvasOne.Height())
 	horizon := h/2 + 50
 	activeTheme := themes[currentThemeIdx]
 
@@ -759,8 +759,8 @@ func drawSunGlow(ctx dom.Context2D, w, cy int32, time uint32, t Theme) {
 // ------------------------------------------------------------------------------------------------
 
 func initBalls() {
-	w := float32(canvasTwo.Width)
-	h := float32(canvasTwo.Height)
+	w := float32(canvasTwo.Width())
+	h := float32(canvasTwo.Height())
 
 	initData := [MaxBalls][5]int32{
 		{20, 30, 270, -180, 12},
@@ -810,8 +810,8 @@ func initBalls() {
 }
 
 func updateCanvasTwo() {
-	w := float32(canvasTwo.Width)
-	h := float32(canvasTwo.Height)
+	w := float32(canvasTwo.Width())
+	h := float32(canvasTwo.Height())
 	var gravity float32 = 0.08
 	var dampen float32 = 0.95
 	bg := colour.Colour{R: 8, G: 8, B: 15, A: 255}

@@ -12,20 +12,25 @@ import (
 // ------------------------------------------------------------------------------------------------
 // Canvas represents the in-memory pixel buffer and its associated HTML canvas.
 type Canvas struct {
-	Width        int
-	Height       int
-	Pixels       []byte
-	ActiveColour colour.Colour
-	CanvasHandle dom.Handle
-	CtxHandle    dom.Handle
+	width        int
+	height       int
+	pixels       []byte
+	activeColour colour.Colour
+	canvasHandle dom.Handle
+	ctxHandle    dom.Handle
 
 	// Pre-allocated JS arrays to speed up rendering without triggering GC.
 	jsClampedArray js.Value
 	jsImgData      js.Value
 }
 
+// ================================================================================================
+// Constructors
+// ================================================================================================
+
 // ------------------------------------------------------------------------------------------------
-// NewCanvas creates a canvas in-memory and associates it with a new canvas element.
+// NewCanvas creates a canvas in-memory and associates it with a new canvas element appended to
+// the DOM element identified by parentID.
 func NewCanvas(width, height int, pixels []byte, parentID string) *Canvas {
 	parentHandle := dom.GetElementByID(parentID)
 	canvasH := dom.CanvasCreate(parentHandle, width, height)
@@ -36,51 +41,98 @@ func NewCanvas(width, height int, pixels []byte, parentID string) *Canvas {
 	jsImgData := js.Global().Get("ImageData").New(jsClampedArray, width, height)
 
 	return &Canvas{
-		Width:          width,
-		Height:         height,
-		Pixels:         pixels,
-		ActiveColour:   colour.Black,
-		CanvasHandle:   canvasH,
-		CtxHandle:      ctxH,
+		width:          width,
+		height:         height,
+		pixels:         pixels,
+		activeColour:   colour.Black,
+		canvasHandle:   canvasH,
+		ctxHandle:      ctxH,
 		jsClampedArray: jsClampedArray,
 		jsImgData:      jsImgData,
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
+// NewOffscreenCanvas creates a Canvas backed only by a Go pixel buffer, with no DOM or JS
+// objects attached. Useful for benchmarking and unit testing. Calling Render() on an offscreen
+// canvas is a no-op.
+func NewOffscreenCanvas(width, height int, pixels []byte) *Canvas {
+	return &Canvas{
+		width:        width,
+		height:       height,
+		pixels:       pixels,
+		activeColour: colour.Black,
+	}
+}
+
+// ================================================================================================
+// Accessors
+// ================================================================================================
+
+// ------------------------------------------------------------------------------------------------
+// Width returns the canvas width in pixels.
+func (c *Canvas) Width() int { return c.width }
+
+// ------------------------------------------------------------------------------------------------
+// Height returns the canvas height in pixels.
+func (c *Canvas) Height() int { return c.height }
+
+// ------------------------------------------------------------------------------------------------
+// Pixels returns the underlying pixel buffer slice.
+// The slice is shared with the Canvas — writes to it are reflected immediately.
+func (c *Canvas) Pixels() []byte { return c.pixels }
+
+// ------------------------------------------------------------------------------------------------
+// CanvasHandle returns the DOM handle for the underlying HTML canvas element.
+func (c *Canvas) CanvasHandle() dom.Handle { return c.canvasHandle }
+
+// ================================================================================================
+// Core rendering
+// ================================================================================================
+
+// ------------------------------------------------------------------------------------------------
 // Render blits the Go-side pixel buffer into JavaScript and updates the canvas.
+// It is a no-op if the canvas was created with NewOffscreenCanvas.
 func (c *Canvas) Render() {
-	js.CopyBytesToJS(c.jsClampedArray, c.Pixels)
-	js.Value(c.CtxHandle).Call("putImageData", c.jsImgData, 0, 0)
+	if c.jsClampedArray.IsUndefined() {
+		return
+	}
+	js.CopyBytesToJS(c.jsClampedArray, c.pixels)
+	js.Value(c.ctxHandle).Call("putImageData", c.jsImgData, 0, 0)
 }
 
 // ------------------------------------------------------------------------------------------------
 // ClearScreen fills the entire canvas with the specified color.
 func (c *Canvas) ClearScreen(col colour.Colour) {
-	if len(c.Pixels) == 0 {
+	if len(c.pixels) == 0 {
 		return
 	}
-	c.Pixels[0] = col.R
-	c.Pixels[1] = col.G
-	c.Pixels[2] = col.B
-	c.Pixels[3] = col.A
+	c.pixels[0] = col.R
+	c.pixels[1] = col.G
+	c.pixels[2] = col.B
+	c.pixels[3] = col.A
 
-	for bp := 4; bp < len(c.Pixels); bp *= 2 {
-		copy(c.Pixels[bp:], c.Pixels[:bp])
+	for bp := 4; bp < len(c.pixels); bp *= 2 {
+		copy(c.pixels[bp:], c.pixels[:bp])
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 // SetColour sets the active drawing color.
 func (c *Canvas) SetColour(col colour.Colour) {
-	c.ActiveColour = col
+	c.activeColour = col
 }
 
 // ------------------------------------------------------------------------------------------------
 // GetColour retrieves the active drawing color.
 func (c *Canvas) GetColour() colour.Colour {
-	return c.ActiveColour
+	return c.activeColour
 }
+
+// ================================================================================================
+// Drawing primitives — plain forms use the active colour; Colour* forms accept a colour
+// argument inline and do NOT mutate the active colour.
+// ================================================================================================
 
 // ------------------------------------------------------------------------------------------------
 // Line draws a 1-pixel line from (x1, y1) to (x2, y2) using Bresenham's algorithm and the active
@@ -119,10 +171,11 @@ func (c *Canvas) Line(x1, y1, x2, y2 int32) {
 
 // ------------------------------------------------------------------------------------------------
 // ColourLine draws a line from (x1, y1) to (x2, y2) with the specified color.
-// It updates the active drawing color to the specified color.
 func (c *Canvas) ColourLine(x1, y1, x2, y2 int32, col colour.Colour) {
-	c.ActiveColour = col
+	old := c.activeColour
+	c.activeColour = col
 	c.Line(x1, y1, x2, y2)
+	c.activeColour = old
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -133,33 +186,49 @@ func (c *Canvas) LinePoint(p1, p2 Point) {
 
 // ------------------------------------------------------------------------------------------------
 // ColourLinePoint draws a line between two Points with the specified color.
-// It updates the active drawing color to the specified color.
 func (c *Canvas) ColourLinePoint(p1, p2 Point, col colour.Colour) {
-	c.ActiveColour = col
+	old := c.activeColour
+	c.activeColour = col
 	c.LinePoint(p1, p2)
+	c.activeColour = old
 }
 
 // ------------------------------------------------------------------------------------------------
 // Circle draws an outline circle at (midX, midY) with the specified radius using the active color.
+// Uses the Bresenham midpoint circle algorithm — integer arithmetic only, no trigonometry.
 func (c *Canvas) Circle(midX, midY, radius int32) {
 	if radius <= 0 {
 		return
 	}
-	rad := float64(radius)
-	step := 1.0 / rad
-	for deg := 0.0; deg < 2.0*math.Pi; deg += step {
-		x := int32(rad * math.Cos(deg))
-		y := int32(rad * math.Sin(deg))
+	x := radius
+	y := int32(0)
+	err := 1 - radius
+	for x >= y {
 		c.PutPixel(midX+x, midY+y)
+		c.PutPixel(midX-x, midY+y)
+		c.PutPixel(midX+x, midY-y)
+		c.PutPixel(midX-x, midY-y)
+		c.PutPixel(midX+y, midY+x)
+		c.PutPixel(midX-y, midY+x)
+		c.PutPixel(midX+y, midY-x)
+		c.PutPixel(midX-y, midY-x)
+		y++
+		if err <= 0 {
+			err += 2*y + 1
+		} else {
+			x--
+			err += 2*(y-x) + 1
+		}
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 // ColourCircle draws an outline circle at (midX, midY) with the specified radius and color.
-// It updates the active drawing color to the specified color.
 func (c *Canvas) ColourCircle(midX, midY, radius int32, col colour.Colour) {
-	c.ActiveColour = col
+	old := c.activeColour
+	c.activeColour = col
 	c.Circle(midX, midY, radius)
+	c.activeColour = old
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -180,10 +249,11 @@ func (c *Canvas) FilledCircle(midX, midY, radius int32) {
 
 // ------------------------------------------------------------------------------------------------
 // ColourFilledCircle draws a filled circle at (midX, midY) with the specified radius and color.
-// It updates the active drawing color to the specified color.
 func (c *Canvas) ColourFilledCircle(midX, midY, radius int32, col colour.Colour) {
-	c.ActiveColour = col
+	old := c.activeColour
+	c.activeColour = col
 	c.FilledCircle(midX, midY, radius)
+	c.activeColour = old
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -216,10 +286,11 @@ func (c *Canvas) BorderCircle(midX, midY, radius, borderWidth int32) {
 // ------------------------------------------------------------------------------------------------
 // ColourBorderCircle draws a ring (annulus) at (midX, midY) with the specified radius, border
 // width, and color.
-// It updates the active drawing color to the specified color.
 func (c *Canvas) ColourBorderCircle(midX, midY, radius, borderWidth int32, col colour.Colour) {
-	c.ActiveColour = col
+	old := c.activeColour
+	c.activeColour = col
 	c.BorderCircle(midX, midY, radius, borderWidth)
+	c.activeColour = old
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -236,10 +307,11 @@ func (c *Canvas) FilledRectangle(xStart, yStart, width, height int32) {
 // ------------------------------------------------------------------------------------------------
 // ColourFilledRectangle draws a filled rectangle starting at (xStart, yStart) with the specified
 // width, height, and color.
-// It updates the active drawing color to the specified color.
 func (c *Canvas) ColourFilledRectangle(xStart, yStart, width, height int32, col colour.Colour) {
-	c.ActiveColour = col
+	old := c.activeColour
+	c.activeColour = col
 	c.FilledRectangle(xStart, yStart, width, height)
+	c.activeColour = old
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -267,10 +339,11 @@ func (c *Canvas) Rectangle(xStart, yStart, width, height, thickness int32) {
 // ------------------------------------------------------------------------------------------------
 // ColourRectangle draws an outline rectangle starting at (xStart, yStart) with the specified width,
 // height, thickness, and color.
-// It updates the active drawing color to the specified color.
 func (c *Canvas) ColourRectangle(xStart, yStart, width, height, thickness int32, col colour.Colour) {
-	c.ActiveColour = col
+	old := c.activeColour
+	c.activeColour = col
 	c.Rectangle(xStart, yStart, width, height, thickness)
+	c.activeColour = old
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -284,5 +357,5 @@ func (c *Canvas) Triangle(p1, p2, p3 Point) {
 // ------------------------------------------------------------------------------------------------
 // GetContext2D returns a Context2D wrapper for the HTML canvas context.
 func (c *Canvas) GetContext2D() dom.Context2D {
-	return dom.Context2D{Ctx: c.CtxHandle}
+	return dom.Context2D{Ctx: c.ctxHandle}
 }

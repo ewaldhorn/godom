@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Click Rect — godom example</title>
+    <script src="wasm_exec.js"></script>
+    <style>
+      body { margin: 0; background: #111; display: flex; justify-content: center; align-items: center; height: 100vh; }
+      #app canvas { display: block; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <!-- Container for the canvas — id must match the parentID passed to canvas.NewCanvas -->
+    <div id="app"></div>
+    <script>
+      const go = new Go();
+      WebAssembly.instantiateStreaming(fetch("app.wasm"), go.importObject).then((result) => {
+        go.run(result.instance);
+      }).catch(err => {
+        console.error("Failed to load WASM:", err);
+      });
+    </script>
+  </body>
+</html>

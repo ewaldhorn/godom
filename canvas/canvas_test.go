@@ -47,12 +47,12 @@ func TestNewCanvas(t *testing.T) {
 	pixels := make([]byte, 100*100*4)
 	c := NewCanvas(100, 100, pixels, "canvas-parent")
 
-	if c.Width != 100 || c.Height != 100 {
-		t.Errorf("expected 100x100 canvas, got %dx%d", c.Width, c.Height)
+	if c.Width() != 100 || c.Height() != 100 {
+		t.Errorf("expected 100x100 canvas, got %dx%d", c.Width(), c.Height())
 	}
 
-	if len(c.Pixels) != 10000*4 {
-		t.Errorf("expected pixel buffer of size 40000, got %d", len(c.Pixels))
+	if len(c.Pixels()) != 10000*4 {
+		t.Errorf("expected pixel buffer of size 40000, got %d", len(c.Pixels()))
 	}
 
 	if c.GetColour() != colour.Black {
