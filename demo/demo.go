@@ -25,7 +25,7 @@ var bodyStyle string
 var dommieText string
 
 const (
-	Version = "0.0.1f"
+	Version = "0.0.2"
 	Name    = "Godom Demo"
 )
 
