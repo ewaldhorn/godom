@@ -6,6 +6,14 @@ let gainNode = null;
 let audioPlaying = false;
 let globalVolume = 0.2;
 
+// Cached DOM elements
+let volumeSlider = null;
+let volumeLabel = null;
+
+// Cached audio buffers
+let clickAudioBuffer = null;
+let noiseBuffer = null;
+
 function ensureAudioCtx() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -24,12 +32,12 @@ function ensureGainNode() {
 }
 
 function updateVolumeUI() {
-  const slider = document.getElementById("volumeSlider");
-  const label = document.getElementById("volumeLabel");
-  if (slider) slider.value = globalVolume;
-  if (label) {
+  if (!volumeSlider) volumeSlider = document.getElementById("volumeSlider");
+  if (!volumeLabel) volumeLabel = document.getElementById("volumeLabel");
+  if (volumeSlider) volumeSlider.value = globalVolume;
+  if (volumeLabel) {
     const pct = Math.round(globalVolume * 100);
-    label.innerText = globalVolume === 0 ? "Vol: OFF" : `Vol: ${pct}%`;
+    volumeLabel.innerText = globalVolume === 0 ? "Vol: OFF" : `Vol: ${pct}%`;
   }
 }
 
@@ -80,7 +88,6 @@ globalThis.toggleAudio = async function () {
 };
 
 // Click sound — pre-rendered 50ms UI click from Go WASM
-let clickAudioBuffer = null;
 
 globalThis.playClickSound = function () {
   const ctx = ensureAudioCtx();
@@ -117,12 +124,14 @@ globalThis.drumHit = function (track) {
   gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
 
   if (DRUM_TYPES[track] === "noise") {
-    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.05), ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
+    if (!noiseBuffer) {
+      noiseBuffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.05), ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
+    }
 
     const src = ctx.createBufferSource();
-    src.buffer = buf;
+    src.buffer = noiseBuffer;
     src.connect(gain);
     src.start();
     src.stop(ctx.currentTime + 0.06);
@@ -165,8 +174,9 @@ function initializeInteractions() {
   // Touch / Click interaction for the physics canvas (canvas two)
   const canvasTwoDiv = document.getElementById("canvasTwoDiv");
   if (canvasTwoDiv) {
+    let canvas = null;
     const handleInteraction = (clientX, clientY) => {
-      const canvas = canvasTwoDiv.querySelector("canvas");
+      if (!canvas) canvas = canvasTwoDiv.querySelector("canvas");
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return;
@@ -198,8 +208,9 @@ function initializeInteractions() {
   // Touch / Click interaction for the sequencer canvas (canvas three)
   const canvasThreeDiv = document.getElementById("canvasThreeDiv");
   if (canvasThreeDiv) {
+    let canvas = null;
     const handleInteraction = (clientX, clientY) => {
-      const canvas = canvasThreeDiv.querySelector("canvas");
+      if (!canvas) canvas = canvasThreeDiv.querySelector("canvas");
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return;
