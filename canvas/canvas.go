@@ -347,14 +347,6 @@ func (c *Canvas) ColourRectangle(xStart, yStart, width, height, thickness int32,
 }
 
 // ------------------------------------------------------------------------------------------------
-// Triangle draws a wireframe triangle through the three Points using the active color.
-func (c *Canvas) Triangle(p1, p2, p3 Point) {
-	c.LinePoint(p1, p2)
-	c.LinePoint(p2, p3)
-	c.LinePoint(p1, p3)
-}
-
-// ------------------------------------------------------------------------------------------------
 // GetContext2D returns a Context2D wrapper for the HTML canvas context.
 func (c *Canvas) GetContext2D() dom.Context2D {
 	return dom.Context2D{Ctx: c.ctxHandle}
