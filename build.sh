@@ -17,6 +17,6 @@ else
 fi
 
 echo "==> Building godom.wasm ..."
-GOOS=js GOARCH=wasm go build -o docs/godom.wasm demo/demo.go
+GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o docs/godom.wasm demo/demo.go
 
 echo "==> Done. WASM binary: $(wc -c < docs/godom.wasm) bytes"
