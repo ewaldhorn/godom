@@ -43,6 +43,31 @@ var (
 	gridOffset           float64
 )
 
+// ------------------------------------------------------------------------------------------------
+// Canvas One — AI ship & obstacle dodging system
+// ------------------------------------------------------------------------------------------------
+
+const MaxCOneObstacles = 4
+
+type COneObstacle struct {
+	OriginX  float32
+	Progress float32
+	Speed    float32
+	Active   bool
+	Kind     uint8 // 0=asteroid, 1=bolt, 2=enemy
+}
+
+var (
+	cOneObstacles   [MaxCOneObstacles]COneObstacle
+	cOneSpawnTimer  uint32
+	cOneShipX       float32 = 400
+	cOneShipTargetX float32 = 400
+	cOneShipBank    float32
+	cOneDecisionTick uint32
+	cOneDodgeScore  uint32
+	cOneInited      bool
+)
+
 // Click sound buffer — pre-rendered 50ms UI click (2205 samples at 44.1kHz)
 var clickBuffer [2205]float32
 
@@ -157,11 +182,10 @@ var drumPattern = [DrumTracks][DrumSteps]bool{
 }
 
 var (
-	drumCurrentStep uint32 = 0
-	drumPlaying     bool   = false
-	drumTick        uint32 = 0
-	drumBpm         uint32 = 120
-	drumStepAccum   uint32 = 0
+	drumCurrentStep uint32  = 0
+	drumPlaying     bool    = false
+	drumBpm         uint32  = 120
+	drumLastStepMs  float64 = 0
 )
 
 var drumLabels = []string{"K", "SN", "HH", "OH", "CL", "RM"}
@@ -316,10 +340,9 @@ func onDrumPlayPause() {
 		return
 	}
 	drumPlaying = !drumPlaying
-	drumTick = 0
-	drumStepAccum = 0
 	setDrumButtonText()
 	if drumPlaying {
+		drumLastStepMs = js.Global().Get("performance").Call("now").Float()
 		playCurrentDrumStep()
 	}
 }
@@ -356,10 +379,10 @@ func updateDrumSequencer() {
 	if !drumPlaying {
 		return
 	}
-	drumTick++
-	drumStepAccum += drumBpm
-	for drumStepAccum >= 900 {
-		drumStepAccum -= 900
+	stepMs := 60000.0 / float64(drumBpm) / 4.0
+	now := js.Global().Get("performance").Call("now").Float()
+	for now-drumLastStepMs >= stepMs {
+		drumLastStepMs += stepMs
 		drumCurrentStep = (drumCurrentStep + 1) % DrumSteps
 		playCurrentDrumStep()
 	}
@@ -532,11 +555,194 @@ var themes = []Theme{
 	},
 }
 
+func maxF32(a, b float32) float32 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func initCOneAI(w int32) {
+	cOneShipX = float32(w) / 2
+	cOneShipTargetX = float32(w) / 2
+	cOneInited = true
+}
+
+func spawnCOneObstacle(w int32) {
+	for i := range cOneObstacles {
+		if !cOneObstacles[i].Active {
+			side := float32(1)
+			if nextRandom()%2 == 0 {
+				side = -1
+			}
+			spread := float32(nextRandom()%260) + 40
+			cOneObstacles[i] = COneObstacle{
+				OriginX:  side * spread,
+				Progress: 0.02,
+				Speed:    0.0045 + float32(nextRandom()%10)*0.0003,
+				Active:   true,
+				Kind:     uint8(nextRandom() % 3),
+			}
+			return
+		}
+	}
+}
+
+func updateCOneObstacles(w, h, horizon int32) {
+	cOneSpawnTimer++
+	if cOneSpawnTimer > 280 {
+		cOneSpawnTimer = 0
+		spawnCOneObstacle(w)
+	}
+
+	cx := float32(w) / 2
+	for i := range cOneObstacles {
+		o := &cOneObstacles[i]
+		if !o.Active {
+			continue
+		}
+		o.Progress += o.Speed
+		if o.Progress >= 1.05 {
+			o.Active = false
+			finalX := cx + o.OriginX
+			if absF32(finalX-cOneShipX) > 45 {
+				cOneDodgeScore++
+			}
+		}
+	}
+}
+
+func updateCOneShipAI(w, h, horizon int32) {
+	cx := float32(w) / 2
+
+	bestThreat := float32(0)
+	threatOrigX := float32(0)
+
+	for i := range cOneObstacles {
+		o := &cOneObstacles[i]
+		if !o.Active || o.Progress < 0.15 {
+			continue
+		}
+		finalX := cx + o.OriginX
+		dist := absF32(finalX - cOneShipX)
+		dangerZone := float32(100)
+		threat := o.Progress * maxF32(0, 1.0-dist/dangerZone)
+		if threat > bestThreat {
+			bestThreat = threat
+			threatOrigX = o.OriginX
+		}
+	}
+
+	cOneDecisionTick++
+
+	if bestThreat > 0.28 && cOneDecisionTick > 30 {
+		// Commit to a dodge and don't re-evaluate for a while
+		if threatOrigX > 0 {
+			cOneShipTargetX = cx - 110 - float32(nextRandom()%50)
+		} else {
+			cOneShipTargetX = cx + 110 + float32(nextRandom()%50)
+		}
+		cOneDecisionTick = 0
+	} else if cOneDecisionTick > 120 {
+		// Gentle idle drift back toward center
+		cOneShipTargetX = cx + float32(int(nextRandom()%80)-40)
+		cOneDecisionTick = 0
+	}
+
+	margin := float32(110)
+	wF := float32(w)
+	if cOneShipTargetX < margin {
+		cOneShipTargetX = margin
+	}
+	if cOneShipTargetX > wF-margin {
+		cOneShipTargetX = wF - margin
+	}
+
+	diff := cOneShipTargetX - cOneShipX
+	cOneShipX += diff * 0.018
+
+	cOneShipBank = diff * 0.003
+	if cOneShipBank > 1.0 {
+		cOneShipBank = 1.0
+	}
+	if cOneShipBank < -1.0 {
+		cOneShipBank = -1.0
+	}
+}
+
+func drawCOneObstacle(o *COneObstacle, cx, horizon, h int32, t Theme) {
+	screenX := int32(float32(cx) + o.OriginX*o.Progress)
+	screenY := int32(float32(horizon) + o.Progress*float32(h-10-horizon))
+	sz := int32(3 + int32(16*o.Progress))
+
+	if screenY <= horizon || screenY >= h-5 {
+		return
+	}
+
+	finalX := float32(cx) + o.OriginX
+	isNearMiss := o.Progress > 0.6 && absF32(finalX-cOneShipX) < 85
+
+	switch o.Kind {
+	case 0: // asteroid
+		col := t.magenta
+		if isNearMiss {
+			col = colour.White
+		}
+		canvasOne.ColourCircle(screenX, screenY, sz, col)
+		canvasOne.ColourLine(screenX-sz-2, screenY, screenX+sz+2, screenY, col)
+		canvasOne.ColourLine(screenX, screenY-sz, screenX, screenY+sz, col)
+		canvasOne.ColourLine(screenX-sz/2, screenY-sz/2, screenX+sz/2, screenY+sz/2, col)
+	case 1: // energy bolt
+		col := t.yellow
+		if isNearMiss {
+			col = colour.White
+		}
+		canvasOne.ColourLine(screenX, screenY-sz*2, screenX, screenY+sz, col)
+		canvasOne.ColourLine(screenX-sz, screenY-sz, screenX+sz, screenY-sz, col)
+		canvasOne.ColourLine(screenX-sz/2, screenY, screenX+sz/2, screenY, col)
+	case 2: // enemy ship
+		col := t.violet
+		ec := t.cyan
+		if isNearMiss {
+			col = colour.White
+			ec = colour.White
+		}
+		canvasOne.ColourLine(screenX-sz*2, screenY-sz/2, screenX, screenY+sz, col)
+		canvasOne.ColourLine(screenX+sz*2, screenY-sz/2, screenX, screenY+sz, col)
+		canvasOne.ColourLine(screenX-sz*2, screenY-sz/2, screenX+sz*2, screenY-sz/2, ec)
+		canvasOne.ColourLine(screenX-sz/2, screenY-sz/4, screenX+sz/2, screenY-sz/4, ec)
+	}
+}
+
+func drawCOneObstacles(cx, horizon, h int32, t Theme) {
+	for i := range cOneObstacles {
+		if cOneObstacles[i].Active {
+			drawCOneObstacle(&cOneObstacles[i], cx, horizon, h, t)
+		}
+	}
+}
+
+func drawCOneHUD(w, h int32, t Theme) {
+	score := cOneDodgeScore
+	hundreds := uint8((score / 100) % 10)
+	tens := uint8((score / 10) % 10)
+	ones := uint8(score % 10)
+
+	drawOneText("SCORE", 20, 20, 3, t.cyan)
+	drawOneGlyph('0'+hundreds, 86, 20, 3, t.yellow)
+	drawOneGlyph('0'+tens, 98, 20, 3, t.yellow)
+	drawOneGlyph('0'+ones, 110, 20, 3, t.yellow)
+}
+
 func performDemoOnCanvasOne() {
 	w := int32(canvasOne.Width())
 	h := int32(canvasOne.Height())
 	horizon := h/2 + 50
 	activeTheme := themes[currentThemeIdx]
+
+	if !cOneInited {
+		initCOneAI(w)
+	}
 
 	colour.Seed(uint64(nextRandom()) | 1)
 
@@ -551,7 +757,13 @@ func performDemoOnCanvasOne() {
 	drawRetroSun(w/2, horizon-20, 85, activeTheme)
 	drawMountainSilhouettes(w, horizon, activeTheme)
 	drawLaserGrid(w, h, horizon, gridOffset, activeTheme)
-	drawVectorShip(w/2, h-55, canvasOneTime, activeTheme)
+
+	updateCOneObstacles(w, h, horizon)
+	updateCOneShipAI(w, h, horizon)
+
+	drawCOneObstacles(w/2, horizon, h, activeTheme)
+	drawVectorShip(int32(cOneShipX), h-55, canvasOneTime, activeTheme)
+	drawCOneHUD(w, h, activeTheme)
 
 	canvasOne.Render()
 
@@ -723,20 +935,30 @@ func drawLaserGrid(w, h, horizon int32, scrollOffset float64, t Theme) {
 func drawVectorShip(cx, cy int32, time uint32, t Theme) {
 	timeF := float64(time)
 	bobY := int32(4.0 * math.Sin(timeF*0.06))
-	swayX := int32(5.0 * math.Cos(timeF*0.04))
+	swayX := int32(2.0 * math.Cos(timeF*0.04))
 
 	scx := cx + swayX
 	scy := cy + bobY
 
+	bankOff := int32(cOneShipBank * 14)
+	dodging := absF32(cOneShipBank) > 0.15
+
 	flameLen := int32(26.0 + 4.0*math.Sin(timeF*0.25))
+	if dodging {
+		flameLen += 8
+	}
 
 	canvasOne.ColourLine(scx-8, scy+12, scx, scy+flameLen, t.cyan)
 	canvasOne.ColourLine(scx+8, scy+12, scx, scy+flameLen, t.cyan)
 	canvasOne.ColourLine(scx-8, scy+12, scx+8, scy+12, t.cyan)
+	if dodging {
+		canvasOne.ColourLine(scx-4, scy+14, scx, scy+flameLen+6, t.yellow)
+		canvasOne.ColourLine(scx+4, scy+14, scx, scy+flameLen+6, t.yellow)
+	}
 
-	canvasOne.ColourLine(scx-35, scy+10, scx+35, scy+10, t.magenta)
-	canvasOne.ColourLine(scx-35, scy+10, scx-12, scy-20, t.magenta)
-	canvasOne.ColourLine(scx+35, scy+10, scx+12, scy-20, t.magenta)
+	canvasOne.ColourLine(scx-35, scy+10+bankOff, scx+35, scy+10-bankOff, t.magenta)
+	canvasOne.ColourLine(scx-35, scy+10+bankOff, scx-12, scy-20, t.magenta)
+	canvasOne.ColourLine(scx+35, scy+10-bankOff, scx+12, scy-20, t.magenta)
 
 	canvasOne.ColourLine(scx-12, scy-20, scx, scy-40, t.yellow)
 	canvasOne.ColourLine(scx+12, scy-20, scx, scy-40, t.yellow)
@@ -1047,6 +1269,65 @@ func performDemoOnCanvasThree() {
 	canvasThree.Render()
 }
 
+func getGlyphRows(ch uint8) [5]string {
+	switch ch {
+	case '0':
+		return [5]string{"111", "101", "101", "101", "111"}
+	case '1':
+		return [5]string{"010", "110", "010", "010", "111"}
+	case '2':
+		return [5]string{"111", "001", "111", "100", "111"}
+	case '3':
+		return [5]string{"111", "001", "111", "001", "111"}
+	case '4':
+		return [5]string{"101", "101", "111", "001", "001"}
+	case '5':
+		return [5]string{"111", "100", "111", "001", "111"}
+	case '6':
+		return [5]string{"111", "100", "111", "101", "111"}
+	case '7':
+		return [5]string{"111", "001", "010", "010", "010"}
+	case '8':
+		return [5]string{"111", "101", "111", "101", "111"}
+	case '9':
+		return [5]string{"111", "101", "111", "001", "111"}
+	case 'A':
+		return [5]string{"010", "101", "111", "101", "101"}
+	case 'B':
+		return [5]string{"110", "101", "110", "101", "110"}
+	case 'C':
+		return [5]string{"111", "100", "100", "100", "111"}
+	case 'D':
+		return [5]string{"110", "101", "101", "101", "110"}
+	case 'E':
+		return [5]string{"111", "100", "110", "100", "111"}
+	case 'H':
+		return [5]string{"101", "101", "111", "101", "101"}
+	case 'I':
+		return [5]string{"111", "010", "010", "010", "111"}
+	case 'K':
+		return [5]string{"101", "101", "110", "101", "101"}
+	case 'L':
+		return [5]string{"100", "100", "100", "100", "111"}
+	case 'M':
+		return [5]string{"101", "111", "111", "101", "101"}
+	case 'N':
+		return [5]string{"101", "111", "111", "111", "101"}
+	case 'O':
+		return [5]string{"111", "101", "101", "101", "111"}
+	case 'P':
+		return [5]string{"110", "101", "110", "100", "100"}
+	case 'R':
+		return [5]string{"110", "101", "110", "101", "101"}
+	case 'S':
+		return [5]string{"111", "100", "111", "001", "111"}
+	case 'U':
+		return [5]string{"101", "101", "101", "101", "111"}
+	default:
+		return [5]string{"000", "000", "000", "000", "000"}
+	}
+}
+
 func drawTinyText(text string, x, y, scale int32, c colour.Colour) {
 	cursor := x
 	for i := 0; i < len(text); i++ {
@@ -1065,70 +1346,41 @@ func drawTinyDigit(digit uint8, x, y, scale int32, c colour.Colour) {
 }
 
 func drawTinyGlyph(ch uint8, x, y, scale int32, c colour.Colour) {
-	var rows [5]string
-	switch ch {
-	case '0':
-		rows = [5]string{"111", "101", "101", "101", "111"}
-	case '1':
-		rows = [5]string{"010", "110", "010", "010", "111"}
-	case '2':
-		rows = [5]string{"111", "001", "111", "100", "111"}
-	case '3':
-		rows = [5]string{"111", "001", "111", "001", "111"}
-	case '4':
-		rows = [5]string{"101", "101", "111", "001", "001"}
-	case '5':
-		rows = [5]string{"111", "100", "111", "001", "111"}
-	case '6':
-		rows = [5]string{"111", "100", "111", "101", "111"}
-	case '7':
-		rows = [5]string{"111", "001", "010", "010", "010"}
-	case '8':
-		rows = [5]string{"111", "101", "111", "101", "111"}
-	case '9':
-		rows = [5]string{"111", "101", "111", "001", "111"}
-	case 'A':
-		rows = [5]string{"010", "101", "111", "101", "101"}
-	case 'B':
-		rows = [5]string{"110", "101", "110", "101", "110"}
-	case 'C':
-		rows = [5]string{"111", "100", "100", "100", "111"}
-	case 'D':
-		rows = [5]string{"110", "101", "101", "101", "110"}
-	case 'E':
-		rows = [5]string{"111", "100", "110", "100", "111"}
-	case 'H':
-		rows = [5]string{"101", "101", "111", "101", "101"}
-	case 'I':
-		rows = [5]string{"111", "010", "010", "010", "111"}
-	case 'K':
-		rows = [5]string{"101", "101", "110", "101", "101"}
-	case 'L':
-		rows = [5]string{"100", "100", "100", "100", "111"}
-	case 'M':
-		rows = [5]string{"101", "111", "111", "101", "101"}
-	case 'N':
-		rows = [5]string{"101", "111", "111", "111", "101"}
-	case 'O':
-		rows = [5]string{"111", "101", "101", "101", "111"}
-	case 'P':
-		rows = [5]string{"110", "101", "110", "100", "100"}
-	case 'R':
-		rows = [5]string{"110", "101", "110", "101", "101"}
-	case 'S':
-		rows = [5]string{"111", "100", "111", "001", "111"}
-	case 'U':
-		rows = [5]string{"101", "101", "101", "101", "111"}
-	case ' ':
-		rows = [5]string{"000", "000", "000", "000", "000"}
-	default:
-		rows = [5]string{"000", "000", "000", "000", "000"}
-	}
-
+	rows := getGlyphRows(ch)
 	for rowIdx, row := range rows {
 		for colIdx := 0; colIdx < len(row); colIdx++ {
 			if row[colIdx] == '1' {
 				canvasThree.ColourFilledRectangle(
+					x+int32(colIdx)*scale,
+					y+int32(rowIdx)*scale,
+					scale,
+					scale,
+					c,
+				)
+			}
+		}
+	}
+}
+
+func drawOneText(text string, x, y, scale int32, c colour.Colour) {
+	cursor := x
+	for i := 0; i < len(text); i++ {
+		ch := text[i]
+		if ch == ' ' {
+			cursor += 4 * scale
+		} else {
+			drawOneGlyph(ch, cursor, y, scale, c)
+			cursor += 4 * scale
+		}
+	}
+}
+
+func drawOneGlyph(ch uint8, x, y, scale int32, c colour.Colour) {
+	rows := getGlyphRows(ch)
+	for rowIdx, row := range rows {
+		for colIdx := 0; colIdx < len(row); colIdx++ {
+			if row[colIdx] == '1' {
+				canvasOne.ColourFilledRectangle(
 					x+int32(colIdx)*scale,
 					y+int32(rowIdx)*scale,
 					scale,

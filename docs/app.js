@@ -14,6 +14,23 @@ let volumeLabel = null;
 let clickAudioBuffer = null;
 let noiseBuffer = null;
 
+// Pooled GainNodes for drum hits — avoids allocating a new node per hit
+const DRUM_GAIN_POOL_SIZE = 8;
+let drumGainPool = null;
+let drumGainIdx = 0;
+
+function ensureDrumGainPool() {
+  if (!drumGainPool) {
+    const ctx = ensureAudioCtx();
+    drumGainPool = Array.from({ length: DRUM_GAIN_POOL_SIZE }, () => {
+      const g = ctx.createGain();
+      g.connect(ensureGainNode());
+      return g;
+    });
+  }
+  return drumGainPool;
+}
+
 function ensureAudioCtx() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -118,8 +135,10 @@ globalThis.drumHit = function (track) {
     ctx.resume();
   }
 
-  const gain = ctx.createGain();
-  gain.connect(ensureGainNode());
+  const pool = ensureDrumGainPool();
+  const gain = pool[drumGainIdx];
+  drumGainIdx = (drumGainIdx + 1) % DRUM_GAIN_POOL_SIZE;
+  gain.gain.cancelScheduledValues(ctx.currentTime);
   gain.gain.setValueAtTime(0.4, ctx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
 
@@ -176,17 +195,20 @@ function initializeInteractions() {
   if (canvasTwoDiv) {
     let canvas = null;
     let isDragging = false;
+    let cachedRectTwo = null;
+
+    window.addEventListener('resize', () => { cachedRectTwo = null; });
 
     const handleInteraction = (clientX, clientY) => {
       if (!canvas) canvas = canvasTwoDiv.querySelector("canvas");
       if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
+      if (!cachedRectTwo) cachedRectTwo = canvas.getBoundingClientRect();
+      if (cachedRectTwo.width === 0 || cachedRectTwo.height === 0) return;
       // Map from CSS pixels to canvas pixel space
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const x = Math.round((clientX - rect.left) * scaleX);
-      const y = Math.round((clientY - rect.top) * scaleY);
+      const scaleX = canvas.width / cachedRectTwo.width;
+      const scaleY = canvas.height / cachedRectTwo.height;
+      const x = Math.round((clientX - cachedRectTwo.left) * scaleX);
+      const y = Math.round((clientY - cachedRectTwo.top) * scaleY);
       go_set_interaction(x, y);
       go_invoke_callback(4); // 4 = onCanvasInteraction
     };
@@ -231,16 +253,20 @@ function initializeInteractions() {
   const canvasThreeDiv = document.getElementById("canvasThreeDiv");
   if (canvasThreeDiv) {
     let canvas = null;
+    let cachedRectThree = null;
+
+    window.addEventListener('resize', () => { cachedRectThree = null; });
+
     const handleInteraction = (clientX, clientY) => {
       if (!canvas) canvas = canvasThreeDiv.querySelector("canvas");
       if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
+      if (!cachedRectThree) cachedRectThree = canvas.getBoundingClientRect();
+      if (cachedRectThree.width === 0 || cachedRectThree.height === 0) return;
       // Map from CSS pixels to canvas pixel space
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const x = Math.round((clientX - rect.left) * scaleX);
-      const y = Math.round((clientY - rect.top) * scaleY);
+      const scaleX = canvas.width / cachedRectThree.width;
+      const scaleY = canvas.height / cachedRectThree.height;
+      const x = Math.round((clientX - cachedRectThree.left) * scaleX);
+      const y = Math.round((clientY - cachedRectThree.top) * scaleY);
       go_set_interaction(x, y);
       go_invoke_callback(6); // 6 = onDrumCanvasClick
     };

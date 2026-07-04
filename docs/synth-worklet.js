@@ -26,6 +26,12 @@ const ARP_PATTERN = [0, 1, 2, 3, 2, 1, 0, 2];
 const SAMPLES_PER_STEP = 5292;
 const SAMPLE_RATE = 44100;
 
+const TWO_PI = 2.0 * Math.PI;
+
+// Delay line: 3 sixteenth notes = 15876 samples; buffer capacity = 16000
+const DELAY_CAPACITY = 16000;
+const DELAY_READ_OFFSET = DELAY_CAPACITY - 15876; // = 124
+
 // ------------------------------------------------------------------------------------------------
 // Helpers
 // ------------------------------------------------------------------------------------------------
@@ -103,12 +109,36 @@ class SynthEngine {
     // Drum layering timer (resets on each play start)
     this.totalElapsed = 0;
 
+    // Cached drum volume level — updated at threshold crossings only
+    this.drumVol = 0.0;
+
     // Dotted-eighth echo delay line (approx 360ms delay at 44.1kHz = 15876 samples)
-    this.delayBuffer = new Float32Array(16000);
+    this.delayBuffer = new Float32Array(DELAY_CAPACITY);
     this.delayWritePtr = 0;
 
     // Playing state
     this.playing = false;
+
+    // Precomputed envelope rates (fixed constants — never change)
+    this.bassAttackRate  = 1.0 / (0.005 * SAMPLE_RATE);
+    this.bassDecayRate   = (1.0 - 0.45) / (0.10 * SAMPLE_RATE);
+    this.bassReleaseRate = 0.45 / (0.12 * SAMPLE_RATE);
+
+    this.arpAttackRate   = 1.0 / (0.015 * SAMPLE_RATE);
+    this.arpDecayRate    = (1.0 - 0.35) / (0.15 * SAMPLE_RATE);
+    this.arpReleaseRate  = 0.35 / (0.22 * SAMPLE_RATE);
+
+    this.kickAttackRate  = 1.0 / (0.001 * SAMPLE_RATE);
+    this.kickDecayRate   = 1.0 / (0.300 * SAMPLE_RATE);
+
+    this.snareAttackRate = 1.0 / (0.001 * SAMPLE_RATE);
+    this.snareDecayRate  = 1.0 / (0.150 * SAMPLE_RATE);
+
+    this.hatAttackRate   = 1.0 / (0.001 * SAMPLE_RATE);
+    this.hatDecayRate    = 1.0 / (0.060 * SAMPLE_RATE);
+
+    this.crashAttackRate = 1.0 / (0.003 * SAMPLE_RATE);
+    this.crashDecayRate  = 1.0 / (0.800 * SAMPLE_RATE);
   }
 
   triggerBass(midiNote) {
@@ -142,11 +172,11 @@ class SynthEngine {
   }
 
   handleSequencerStep() {
-    const stepInChord = this.currentStep % 16;
+    const stepInBar = this.currentStep % 16;
     const chordIdx = Math.floor(this.currentStep / 16);
 
     // 1. Trigger the Arpeggiator Lead on every step (sixteenth notes)
-    const arpNoteIdx = ARP_PATTERN[stepInChord % ARP_PATTERN.length];
+    const arpNoteIdx = ARP_PATTERN[stepInBar % ARP_PATTERN.length];
     const arpNote = CHORD_ARPS[chordIdx][arpNoteIdx % CHORD_ARPS[chordIdx].length];
     this.triggerArp(arpNote);
 
@@ -158,7 +188,6 @@ class SynthEngine {
     }
 
     // 3. Drum patterns — layered in at 30s and 60s
-    const stepInBar = this.currentStep % 16;
     if (this.totalElapsed >= 1323000) {       // 30 seconds: Layer 1
       // Kick on beats 1 and 3 (steps 0, 8)
       if (stepInBar === 0 || stepInBar === 8) {
@@ -184,6 +213,13 @@ class SynthEngine {
           this.triggerSnare();
         }
       }
+    }
+
+    // Update cached drum volume at threshold crossings
+    if (this.totalElapsed >= 2646000) {
+      this.drumVol = 1.0;
+    } else if (this.totalElapsed >= 1323000) {
+      this.drumVol = 0.35;
     }
   }
 
@@ -223,21 +259,16 @@ class SynthEngine {
       if (this.bassPhase2 >= 1.0) this.bassPhase2 -= 1.0;
       const osc2 = -1.0 + 2.0 * this.bassPhase2;
 
-      // Envelope calculations
-      const attackRate = 1.0 / (0.005 * SAMPLE_RATE);    // 5ms attack
-      const decayRate = (1.0 - 0.45) / (0.10 * SAMPLE_RATE);  // 100ms decay to 45% sustain
-      const releaseRate = 0.45 / (0.12 * SAMPLE_RATE);   // 120ms release
-
       switch (this.bassEnvStage) {
         case EnvStage.ATTACK:
-          this.bassEnvAmp += attackRate;
+          this.bassEnvAmp += this.bassAttackRate;
           if (this.bassEnvAmp >= 1.0) {
             this.bassEnvAmp = 1.0;
             this.bassEnvStage = EnvStage.DECAY;
           }
           break;
         case EnvStage.DECAY:
-          this.bassEnvAmp -= decayRate;
+          this.bassEnvAmp -= this.bassDecayRate;
           if (this.bassEnvAmp <= 0.45) {
             this.bassEnvAmp = 0.45;
             this.bassEnvStage = EnvStage.SUSTAIN;
@@ -246,7 +277,7 @@ class SynthEngine {
         case EnvStage.SUSTAIN:
           break;
         case EnvStage.RELEASE:
-          this.bassEnvAmp -= releaseRate;
+          this.bassEnvAmp -= this.bassReleaseRate;
           if (this.bassEnvAmp <= 0.0) {
             this.bassEnvAmp = 0.0;
             this.bassEnvStage = EnvStage.IDLE;
@@ -272,21 +303,16 @@ class SynthEngine {
         ? -1.0 + 4.0 * this.arpPhase
         : 3.0 - 4.0 * this.arpPhase;
 
-      // Envelope calculations
-      const attackRate = 1.0 / (0.015 * SAMPLE_RATE);   // 15ms attack
-      const decayRate = (1.0 - 0.35) / (0.15 * SAMPLE_RATE);  // 150ms decay to 35% sustain
-      const releaseRate = 0.35 / (0.22 * SAMPLE_RATE);  // 220ms release
-
       switch (this.arpEnvStage) {
         case EnvStage.ATTACK:
-          this.arpEnvAmp += attackRate;
+          this.arpEnvAmp += this.arpAttackRate;
           if (this.arpEnvAmp >= 1.0) {
             this.arpEnvAmp = 1.0;
             this.arpEnvStage = EnvStage.DECAY;
           }
           break;
         case EnvStage.DECAY:
-          this.arpEnvAmp -= decayRate;
+          this.arpEnvAmp -= this.arpDecayRate;
           if (this.arpEnvAmp <= 0.35) {
             this.arpEnvAmp = 0.35;
             this.arpEnvStage = EnvStage.SUSTAIN;
@@ -295,7 +321,7 @@ class SynthEngine {
         case EnvStage.SUSTAIN:
           break;
         case EnvStage.RELEASE:
-          this.arpEnvAmp -= releaseRate;
+          this.arpEnvAmp -= this.arpReleaseRate;
           if (this.arpEnvAmp <= 0.0) {
             this.arpEnvAmp = 0.0;
             this.arpEnvStage = EnvStage.IDLE;
@@ -318,18 +344,15 @@ class SynthEngine {
       const freq = 150.0 + (40.0 - 150.0) * Math.min(sweepPos, 1.0);
       this.kickPhase += freq / SAMPLE_RATE;
       if (this.kickPhase >= 1.0) this.kickPhase -= 1.0;
-      const osc = Math.sin(2.0 * Math.PI * this.kickPhase);
-
-      const attackRate = 1.0 / (0.001 * SAMPLE_RATE);   // 1ms attack
-      const decayRate = 1.0 / (0.300 * SAMPLE_RATE);    // 300ms decay
+      const osc = Math.sin(TWO_PI * this.kickPhase);
 
       switch (this.kickEnvStage) {
         case EnvStage.ATTACK:
-          this.kickEnvAmp += attackRate;
+          this.kickEnvAmp += this.kickAttackRate;
           if (this.kickEnvAmp >= 1.0) { this.kickEnvAmp = 1.0; this.kickEnvStage = EnvStage.DECAY; }
           break;
         case EnvStage.DECAY:
-          this.kickEnvAmp -= decayRate;
+          this.kickEnvAmp -= this.kickDecayRate;
           if (this.kickEnvAmp <= 0.0) { this.kickEnvAmp = 0.0; this.kickEnvStage = EnvStage.IDLE; }
           break;
         default:
@@ -345,20 +368,17 @@ class SynthEngine {
     if (this.snareEnvStage !== EnvStage.IDLE) {
       this.snarePhase += 200.0 / SAMPLE_RATE;
       if (this.snarePhase >= 1.0) this.snarePhase -= 1.0;
-      const tone = Math.sin(2.0 * Math.PI * this.snarePhase);
+      const tone = Math.sin(TWO_PI * this.snarePhase);
       this.snareNoiseState = xorshift32(this.snareNoiseState);
       const noise = (this.snareNoiseState & 0x7FFFFFFF) / 0x7FFFFFFF * 2.0 - 1.0;
 
-      const attackRate = 1.0 / (0.001 * SAMPLE_RATE);   // 1ms attack
-      const decayRate = 1.0 / (0.150 * SAMPLE_RATE);    // 150ms decay
-
       switch (this.snareEnvStage) {
         case EnvStage.ATTACK:
-          this.snareEnvAmp += attackRate;
+          this.snareEnvAmp += this.snareAttackRate;
           if (this.snareEnvAmp >= 1.0) { this.snareEnvAmp = 1.0; this.snareEnvStage = EnvStage.DECAY; }
           break;
         case EnvStage.DECAY:
-          this.snareEnvAmp -= decayRate;
+          this.snareEnvAmp -= this.snareDecayRate;
           if (this.snareEnvAmp <= 0.0) { this.snareEnvAmp = 0.0; this.snareEnvStage = EnvStage.IDLE; }
           break;
         default:
@@ -377,16 +397,13 @@ class SynthEngine {
       const hpNoise = noise - this.hatPrevNoise;
       this.hatPrevNoise = noise;
 
-      const attackRate = 1.0 / (0.001 * SAMPLE_RATE);   // 1ms attack
-      const decayRate = 1.0 / (0.060 * SAMPLE_RATE);    // 60ms decay
-
       switch (this.hatEnvStage) {
         case EnvStage.ATTACK:
-          this.hatEnvAmp += attackRate;
+          this.hatEnvAmp += this.hatAttackRate;
           if (this.hatEnvAmp >= 1.0) { this.hatEnvAmp = 1.0; this.hatEnvStage = EnvStage.DECAY; }
           break;
         case EnvStage.DECAY:
-          this.hatEnvAmp -= decayRate;
+          this.hatEnvAmp -= this.hatDecayRate;
           if (this.hatEnvAmp <= 0.0) { this.hatEnvAmp = 0.0; this.hatEnvStage = EnvStage.IDLE; }
           break;
         default:
@@ -410,16 +427,13 @@ class SynthEngine {
       const hp2 = hp - this.crashPrevNoise2;
       this.crashPrevNoise2 = hp;
 
-      const attackRate = 1.0 / (0.003 * SAMPLE_RATE);   // 3ms attack
-      const decayRate = 1.0 / (0.800 * SAMPLE_RATE);    // 800ms decay
-
       switch (this.crashEnvStage) {
         case EnvStage.ATTACK:
-          this.crashEnvAmp += attackRate;
+          this.crashEnvAmp += this.crashAttackRate;
           if (this.crashEnvAmp >= 1.0) { this.crashEnvAmp = 1.0; this.crashEnvStage = EnvStage.DECAY; }
           break;
         case EnvStage.DECAY:
-          this.crashEnvAmp -= decayRate;
+          this.crashEnvAmp -= this.crashDecayRate;
           if (this.crashEnvAmp <= 0.0) { this.crashEnvAmp = 0.0; this.crashEnvStage = EnvStage.IDLE; }
           break;
         default:
@@ -432,24 +446,19 @@ class SynthEngine {
     // Mix & Echo Delay Effect
     // ----------------------------------------------------------------------------------------
 
-    // Drum volume layering: subtle at 30s, full at 60s
-    const drumVol = (this.totalElapsed >= 2646000) ? 1.0 : (this.totalElapsed >= 1323000 ? 0.35 : 0.0);
-
     const mixed = (bassOut * 0.32) + (arpOut * 0.20)
-                + (kickOut * 0.40 * drumVol)
-                + (snareOut * 0.22 * drumVol)
-                + (hatOut * 0.10 * drumVol)
+                + (kickOut * 0.40 * this.drumVol)
+                + (snareOut * 0.22 * this.drumVol)
+                + (hatOut * 0.10 * this.drumVol)
                 + (crashOut * 0.50);
 
     // Fetch spatial echo from delay line (3 sixteenth notes = 15876 samples)
-    const delaySamples = 15876;
-    const delayCapacity = this.delayBuffer.length;
-    const readPtr = (this.delayWritePtr + (delayCapacity - delaySamples)) % delayCapacity;
+    const readPtr = (this.delayWritePtr + DELAY_READ_OFFSET) % DELAY_CAPACITY;
     const echo = this.delayBuffer[readPtr];
 
     // Write feedback to circular buffer
     this.delayBuffer[this.delayWritePtr] = mixed + (echo * 0.45);
-    this.delayWritePtr = (this.delayWritePtr + 1) % delayCapacity;
+    if (++this.delayWritePtr >= DELAY_CAPACITY) this.delayWritePtr = 0;
 
     // Combine Dry and Wet (echo) signals
     const finalOut = mixed * 0.75 + echo * 0.32;
@@ -479,6 +488,7 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
             this.synth.currentSample = 0;
             this.synth.currentStep = 0;
             this.synth.totalElapsed = 0;
+            this.synth.drumVol = 0.0;
           }
           break;
         case 'crash':
@@ -500,28 +510,28 @@ class SynthWorkletProcessor extends AudioWorkletProcessor {
   }
 
   process(inputs, outputs, parameters) {
+    const output = outputs[0];
+    if (!output || output.length === 0) return true;
+
+    const channelData = output[0];
+    if (!channelData || channelData.length === 0) return true;
+    const numSamples = channelData.length;
+
+    if (!this.synth.playing) {
+      channelData.fill(0);
+      return true;
+    }
+
     try {
-      const output = outputs[0];
-      if (!output || output.length === 0) return true;
-
-      const channelData = output[0];
-      if (!channelData || channelData.length === 0) return true;
-      const numSamples = channelData.length;
-
-      if (!this.synth.playing) {
-        channelData.fill(0);
-        return true;
-      }
-
       for (let i = 0; i < numSamples; i++) {
         channelData[i] = this.synth.nextSample();
       }
-
-      return true; // Keep the processor alive
     } catch (error) {
       console.error(error);
       return false;
     }
+
+    return true; // Keep the processor alive
   }
 }
 

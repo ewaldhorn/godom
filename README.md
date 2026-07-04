@@ -1,8 +1,8 @@
 # Godom — A Go WebAssembly DOM Utility Library
 
-`godom` is a header-less, dependency-free wrapper around the browser DOM and Canvas 2D APIs written in pure Go. It targets standard WebAssembly (`GOOS=js GOARCH=wasm`) and operates using Go 1.26's standard `syscall/js` layer.
+`godom` is a dependency-free wrapper around the browser DOM and Canvas 2D APIs, written in pure Go. It targets standard WebAssembly (`GOOS=js GOARCH=wasm`) via Go 1.26's `syscall/js` layer.
 
-It was created to prove the feasibility of zero-allocation canvas updates and low-latency audio pre-rendering with DOM manipulation in Go WebAssembly.
+Use it to build interactive browser apps entirely in Go — declarative element building, pixel-level canvas drawing, event handling, and audio pre-rendering, with no JavaScript frameworks required.
 
 ---
 
@@ -70,7 +70,8 @@ GOOS=js GOARCH=wasm go build -o app.wasm main.go
    ```bash
    cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" .
    ```
-   > **Note:** On older Go installations the file may be at `$(go env GOROOT)/misc/wasm/wasm_exec.js` instead. If the first path gives an error, try that one.
+   > On older Go installations the file may be at `$(go env GOROOT)/misc/wasm/wasm_exec.js` instead.
+
 2. Load the WebAssembly module inside your `index.html` page:
 
 ```html
@@ -97,7 +98,9 @@ GOOS=js GOARCH=wasm go build -o app.wasm main.go
 </html>
 ```
 
-> **Note:** The `synth-worklet.js` file in `docs/` is only required for the demo's audio synthesizer. It is not needed for basic DOM or canvas usage.
+> **Browser support:** WebAssembly is supported in all modern browsers (Chrome, Firefox, Safari, Edge). You must serve files over HTTP — opening `index.html` directly as a `file://` URL will not work.
+>
+> **Note:** `synth-worklet.js` (in `docs/`) is only required for the demo's audio synthesizer and is not part of the library itself.
 
 ---
 
@@ -158,14 +161,13 @@ import (
 	"github.com/ewaldhorn/godom/html"
 )
 
-// js.FuncOf returns a js.Func. Pass .Value where a js.Value is expected.
 clickFn := js.FuncOf(func(this js.Value, args []js.Value) any {
 	dom.Alert("clicked!")
 	return nil
 })
 btn := html.Button().
 	Text("Click me").
-	On("click", clickFn.Value).
+	On("click", clickFn.Value). // js.FuncOf returns a js.Func; pass .Value here
 	AppendTo(dom.Body)
 ```
 
@@ -190,7 +192,6 @@ func main() {
 	var dx, dy int32 = 2, 2
 	red := colour.Colour{R: 255, G: 0, B: 0, A: 255}
 
-	// js.FuncOf returns a js.Func. Pass .Value where a js.Value is expected.
 	loopFn := js.FuncOf(func(this js.Value, args []js.Value) any {
 		// Update position and bounce off walls
 		x += dx
@@ -216,11 +217,11 @@ func main() {
 
 | Package | Purpose |
 |---------|---------|
-| **`dom`** | Global handles (`Document`, `Body`, `Head`), element CRUD (`CreateElement`, `GetElementByID`, `AddElementTo`), visibility (`Hide`, `Show`), events (`AddEventListener`, `StartAnimationLoop`), CSS injection (`AddNewStyleElement`), canvas bootstrap (`CanvasCreate`, `CanvasGetContext`), `Context2D` wrapper, logging (`Log`, `Alert`). |
-| **`html`** | Fluent tag builder: `Div`, `Span`, `Button`, `Input`, `Form`, `Table`, `H1`–`H6`, `Ul`/`Ol`/`Li`, `A`, `Img`, `Br`, `Hr`, and 20+ more. Chainable methods: `.Class()`, `.ID()`, `.Text()`, `.HTML()`, `.Attr()`, `.Child()`, `.On()`, `.AppendTo()`, `.Build()`. |
-| **`canvas`** | Double-buffered pixel canvas: `NewCanvas`, `ClearScreen`, `SetColour`, `Line`, `Circle`, `FilledCircle`, `BorderCircle`, `Rectangle`, `FilledRectangle`, `Triangle`, `PutPixel`, `GetPixel`, `Render`, `GetContext2D`. Each drawing primitive also has a `Colour*` variant that accepts a colour directly. |
-| **`colour`** | RGBA struct and presets (`White`, `Black`, `Empty`). Methods: `IsEmpty()`, `ConvertToGrayscale()`. Seedable Xorshift64 PRNG: `RandomColour()`, `Seed()`. Custom colours are constructed directly: `colour.Colour{R: 255, G: 0, B: 0, A: 255}`. |
-| **`sound`** | Audio synthesis utilities: `FillClick` pre-renders a triangle-wave click buffer for browser playback. |
+| **`dom`** | Global handles (`Document`, `Body`, `Head`). Element CRUD: `CreateElement`, `GetElementByID`, `AddElementTo`. Visibility: `Hide`, `Show`. Events: `AddEventListener`, `StartAnimationLoop`. Canvas bootstrap: `CanvasCreate`, `CanvasGetContext`, `Context2D` wrapper. Utilities: `AddNewStyleElement`, `Log`, `Alert`. |
+| **`html`** | Fluent tag builder for `Div`, `Span`, `Button`, `Input`, `Form`, `Table`, `H1`–`H6`, `Ul`/`Ol`/`Li`, `A`, `Img`, `Br`, `Hr`, and more. Chainable: `.Class()`, `.ID()`, `.Text()`, `.HTML()`, `.Attr()`, `.Child()`, `.On()`, `.AppendTo()`, `.Build()`. |
+| **`canvas`** | Pixel canvas with a Go-side `[]byte` buffer. Draw with `Line`, `Circle`, `FilledCircle`, `BorderCircle`, `Rectangle`, `FilledRectangle`, `Triangle`, `PutPixel`, `GetPixel`, then commit everything to the browser in one call with `Render()`. Every drawing primitive has a `Colour*` variant that takes a colour inline. |
+| **`colour`** | RGBA struct with presets (`White`, `Black`, `Empty`). `IsEmpty()`, `ConvertToGrayscale()`. Seedable PRNG: `RandomColour()`, `Seed()`. Construct custom colours as `colour.Colour{R: 255, G: 0, B: 0, A: 255}`. |
+| **`sound`** | Audio pre-rendering: `FillClick` generates a triangle-wave click buffer suitable for low-latency browser playback via the Web Audio API. |
 
 ---
 
@@ -252,6 +253,7 @@ This repository includes a feature-rich, high-performance synthwave physics and 
 * **Canvas Two:** Real-time elastic ball physics simulation updating at 60 FPS.
 * **Canvas Three:** Neo-neon 16-step drum machine sequencer with AudioWorklet synthesizer loops.
 
+---
 
 ## Examples
 
