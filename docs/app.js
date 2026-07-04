@@ -166,7 +166,7 @@ document.addEventListener('keydown', function (e) {
 
 function initializeInteractions() {
   // Wire click sound to action buttons (skip audioToggleButton — that's the synth)
-  ['addSomethingButton', 'clearAsideButton', 'refreshButton', 'drumPlayButton'].forEach(function (id) {
+  ['addSomethingButton', 'clearAsideButton', 'refreshButton', 'drumPlayButton', 'gravityButton'].forEach(function (id) {
     const btn = document.getElementById(id);
     if (btn) btn.addEventListener('click', playClickSound);
   });
@@ -175,6 +175,8 @@ function initializeInteractions() {
   const canvasTwoDiv = document.getElementById("canvasTwoDiv");
   if (canvasTwoDiv) {
     let canvas = null;
+    let isDragging = false;
+
     const handleInteraction = (clientX, clientY) => {
       if (!canvas) canvas = canvasTwoDiv.querySelector("canvas");
       if (!canvas) return;
@@ -192,11 +194,31 @@ function initializeInteractions() {
     canvasTwoDiv.addEventListener("mousedown", (e) => {
       if (e.target.tagName === "CANVAS") {
         e.preventDefault();
+        isDragging = true;
         handleInteraction(e.clientX, e.clientY);
       }
     });
 
+    // Continue pushing balls while dragging across the canvas
+    canvasTwoDiv.addEventListener("mousemove", (e) => {
+      if (isDragging) {
+        e.preventDefault();
+        handleInteraction(e.clientX, e.clientY);
+      }
+    });
+
+    document.addEventListener("mouseup", () => { isDragging = false; });
+
     canvasTwoDiv.addEventListener("touchstart", (e) => {
+      if (e.target.tagName === "CANVAS") {
+        e.preventDefault();
+        const touch = e.touches[0];
+        handleInteraction(touch.clientX, touch.clientY);
+      }
+    }, { passive: false });
+
+    // Continuous touch drag
+    canvasTwoDiv.addEventListener("touchmove", (e) => {
       if (e.target.tagName === "CANVAS") {
         e.preventDefault();
         const touch = e.touches[0];

@@ -1,6 +1,8 @@
 // Package colour provides structures, constants, and utilities for working with RGBA colors.
 package colour
 
+import "sync/atomic"
+
 // ------------------------------------------------------------------------------------------------
 // Colour represents an RGBA color structure.
 type Colour struct {
@@ -35,24 +37,32 @@ func (c *Colour) ConvertToGrayscale() {
 
 // ------------------------------------------------------------------------------------------------
 // rngState is the current state of the seedable Xorshift64 PRNG.
-var rngState uint64 = 1337
+var rngState atomic.Uint64
+
+func init() { rngState.Store(1337) }
 
 // ------------------------------------------------------------------------------------------------
 // Seed re-seeds the color PRNG with the specified seed value.
 // The seed value s must be non-zero; a value of zero is silently ignored.
 func Seed(s uint64) {
 	if s != 0 {
-		rngState = s
+		rngState.Store(s)
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 // nextRandom generates the next pseudorandom 32-bit unsigned integer using Xorshift64.
 func nextRandom() uint32 {
-	rngState ^= rngState << 13
-	rngState ^= rngState >> 7
-	rngState ^= rngState << 17
-	return uint32(rngState)
+	for {
+		old := rngState.Load()
+		next := old
+		next ^= next << 13
+		next ^= next >> 7
+		next ^= next << 17
+		if rngState.CompareAndSwap(old, next) {
+			return uint32(next)
+		}
+	}
 }
 
 // ------------------------------------------------------------------------------------------------

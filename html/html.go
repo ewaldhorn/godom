@@ -2,8 +2,9 @@
 package html
 
 import (
-	"github.com/ewaldhorn/godom/dom"
 	"syscall/js"
+
+	"github.com/ewaldhorn/godom/dom"
 )
 
 // ------------------------------------------------------------------------------------------------

@@ -33,6 +33,9 @@ type Canvas struct {
 // the DOM element identified by parentID.
 func NewCanvas(width, height int, pixels []byte, parentID string) *Canvas {
 	parentHandle := dom.GetElementByID(parentID)
+	if !parentHandle.IsValid() {
+		panic("godom: NewCanvas: no DOM element with id " + parentID)
+	}
 	canvasH := dom.CanvasCreate(parentHandle, width, height)
 	ctxH := dom.CanvasGetContext(canvasH)
 
@@ -104,7 +107,7 @@ func (c *Canvas) Render() {
 // ------------------------------------------------------------------------------------------------
 // ClearScreen fills the entire canvas with the specified color.
 func (c *Canvas) ClearScreen(col colour.Colour) {
-	if len(c.pixels) == 0 {
+	if len(c.pixels) < 4 {
 		return
 	}
 	c.pixels[0] = col.R
@@ -238,9 +241,10 @@ func (c *Canvas) FilledCircle(midX, midY, radius int32) {
 	if radius <= 0 {
 		return
 	}
-	r2 := radius * radius
+	r2 := int64(radius) * int64(radius)
 	for dy := -radius; dy <= radius; dy++ {
-		chord := int32(math.Sqrt(float64(r2 - dy*dy)))
+		dy64 := int64(dy)
+		chord := int32(math.Sqrt(float64(r2 - dy64*dy64)))
 		for dx := -chord; dx <= chord; dx++ {
 			c.PutPixel(midX+dx, midY+dy)
 		}
@@ -271,11 +275,11 @@ func (c *Canvas) BorderCircle(midX, midY, radius, borderWidth int32) {
 		c.FilledCircle(midX, midY, radius)
 		return
 	}
-	outerR2 := radius * radius
-	innerR2 := innerRadius * innerRadius
+	outerR2 := int64(radius) * int64(radius)
+	innerR2 := int64(innerRadius) * int64(innerRadius)
 	for dy := -radius; dy <= radius; dy++ {
 		for dx := -radius; dx <= radius; dx++ {
-			d2 := dx*dx + dy*dy
+			d2 := int64(dx)*int64(dx) + int64(dy)*int64(dy)
 			if d2 <= outerR2 && d2 > innerR2 {
 				c.PutPixel(midX+dx, midY+dy)
 			}
@@ -318,10 +322,12 @@ func (c *Canvas) ColourFilledRectangle(xStart, yStart, width, height int32, col 
 // rectangleOutline draws the 1-pixel outline of a rectangle starting at (xStart, yStart) with the
 // specified width and height using the active color.
 func (c *Canvas) rectangleOutline(xStart, yStart, width, height int32) {
-	c.Line(xStart, yStart, xStart+width, yStart)
-	c.Line(xStart+width, yStart, xStart+width, yStart+height)
-	c.Line(xStart, yStart+height, xStart+width, yStart+height)
-	c.Line(xStart, yStart, xStart, yStart+height)
+	x2 := xStart + width - 1
+	y2 := yStart + height - 1
+	c.Line(xStart, yStart, x2, yStart)
+	c.Line(x2, yStart, x2, y2)
+	c.Line(xStart, y2, x2, y2)
+	c.Line(xStart, yStart, xStart, y2)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -329,7 +335,7 @@ func (c *Canvas) rectangleOutline(xStart, yStart, width, height int32) {
 // height, and border thickness using the active color.
 func (c *Canvas) Rectangle(xStart, yStart, width, height, thickness int32) {
 	for t := int32(0); t < thickness; t++ {
-		if width-t*2 < 0 || height-t*2 < 0 {
+		if width-t*2 <= 0 || height-t*2 <= 0 {
 			break
 		}
 		c.rectangleOutline(xStart+t, yStart+t, width-t*2, height-t*2)
@@ -348,6 +354,10 @@ func (c *Canvas) ColourRectangle(xStart, yStart, width, height, thickness int32,
 
 // ------------------------------------------------------------------------------------------------
 // GetContext2D returns a Context2D wrapper for the HTML canvas context.
+// Panics if called on a canvas created with NewOffscreenCanvas.
 func (c *Canvas) GetContext2D() dom.Context2D {
+	if js.Value(c.ctxHandle).IsUndefined() {
+		panic("godom: GetContext2D called on an offscreen canvas; only valid for canvases created with NewCanvas")
+	}
 	return dom.Context2D{Ctx: c.ctxHandle}
 }

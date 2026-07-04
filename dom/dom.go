@@ -29,10 +29,9 @@ func Init() {
 }
 
 // ------------------------------------------------------------------------------------------------
-// IsValid checks if the handle is valid (truthy and not null/undefined).
+// IsValid checks if the handle is valid (truthy in the JS sense).
 func (h Handle) IsValid() bool {
-	v := js.Value(h)
-	return v.Truthy() && !v.IsNull() && !v.IsUndefined()
+	return js.Value(h).Truthy()
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -148,9 +147,9 @@ func RemoveAllChildElementsFrom(target Handle) {
 // ------------------------------------------------------------------------------------------------
 // GetElementByID returns the element handle matching the specified ID.
 func GetElementByID(id string) Handle {
-	el := js.Global().Get("document").Call("getElementById", id)
-	if el.Truthy() && !el.IsNull() && !el.IsUndefined() {
-		return Handle(el)
+	el := Handle(js.Global().Get("document").Call("getElementById", id))
+	if el.IsValid() {
+		return el
 	}
 	return Invalid
 }
@@ -312,14 +311,21 @@ func CanvasGetContext(canvas Handle) Handle {
 
 // ------------------------------------------------------------------------------------------------
 // StartAnimationLoop drives a 60 FPS animation cycle via requestAnimationFrame.
-func StartAnimationLoop(cb js.Value) {
+// It returns a stop function; calling it halts the loop and releases the JS closure.
+func StartAnimationLoop(cb js.Value) (stop func()) {
 	var tick js.Func
+	stopped := false
 	tick = js.FuncOf(func(this js.Value, args []js.Value) any {
+		if stopped {
+			tick.Release()
+			return nil
+		}
 		cb.Invoke()
 		js.Global().Call("requestAnimationFrame", tick)
 		return nil
 	})
 	js.Global().Call("requestAnimationFrame", tick)
+	return func() { stopped = true }
 }
 
 // ------------------------------------------------------------------------------------------------

@@ -323,9 +323,8 @@ func TestAnimationLoop(t *testing.T) {
 	})
 	defer cb.Release()
 
-	defer js.Global().Set("stopRAF", true)
-
-	StartAnimationLoop(cb.Value)
+	stopLoop := StartAnimationLoop(cb.Value)
+	defer stopLoop()
 
 	// Wait up to 100ms for animation loop requestAnimationFrame timeout
 	start := time.Now()

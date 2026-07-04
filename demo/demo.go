@@ -25,7 +25,7 @@ var bodyStyle string
 var dommieText string
 
 const (
-	Version = "0.0.2"
+	Version = "0.0.3"
 	Name    = "Godom Demo"
 )
 
@@ -112,6 +112,7 @@ var canvasThree *canvas.Canvas
 // ------------------------------------------------------------------------------------------------
 
 const MaxBalls = 14
+const TrailLen = 10
 
 type Ball struct {
 	X, Y, Vx, Vy float32
@@ -120,6 +121,13 @@ type Ball struct {
 }
 
 var balls [MaxBalls]Ball
+var ballTrails [MaxBalls][TrailLen][2]float32
+var trailHead [MaxBalls]int
+
+// Gravity: 0=down, 1=left, 2=up, 3=right, 4=zero-g
+var gravityMode int = 0
+
+var gravityModeNames = [5]string{"DOWN", "LEFT", "UP", "RIGHT", "ZERO-G"}
 
 // ------------------------------------------------------------------------------------------------
 // Drum machine — fixed-size sequencer state.
@@ -314,6 +322,22 @@ func onDrumPlayPause() {
 	if drumPlaying {
 		playCurrentDrumStep()
 	}
+}
+
+func onCycleGravity() {
+	if !isReady {
+		return
+	}
+	gravityMode = (gravityMode + 1) % 5
+	updateGravityButtonText()
+}
+
+func updateGravityButtonText() {
+	btn := dom.GetElementByID("gravityButton")
+	if !btn.IsValid() {
+		return
+	}
+	btn.SetInnerText("Gravity: " + gravityModeNames[gravityMode])
 }
 
 func setDrumButtonText() {
@@ -806,21 +830,50 @@ func initBalls() {
 			Radius: float32(d[4]),
 			Col:    ballColours[i],
 		}
+		for t := 0; t < TrailLen; t++ {
+			ballTrails[i][t][0] = balls[i].X
+			ballTrails[i][t][1] = balls[i].Y
+		}
+		trailHead[i] = 0
 	}
 }
 
 func updateCanvasTwo() {
 	w := float32(canvasTwo.Width())
 	h := float32(canvasTwo.Height())
-	var gravity float32 = 0.08
-	var dampen float32 = 0.95
-	bg := colour.Colour{R: 8, G: 8, B: 15, A: 255}
 
+	dampen := float32(0.95)
+	if gravityMode == 4 {
+		dampen = 1.0 // elastic walls in zero-g
+	}
+
+	bg := colour.Colour{R: 8, G: 8, B: 15, A: 255}
 	canvasTwo.ClearScreen(bg)
+
+	// Record trail positions before updating physics
+	for i := range balls {
+		trailHead[i] = (trailHead[i] + 1) % TrailLen
+		ballTrails[i][trailHead[i]][0] = balls[i].X
+		ballTrails[i][trailHead[i]][1] = balls[i].Y
+	}
+
+	// Apply gravity based on mode
+	var gx, gy float32
+	switch gravityMode {
+	case 0:
+		gy = 0.08
+	case 1:
+		gx = -0.08
+	case 2:
+		gy = -0.08
+	case 3:
+		gx = 0.08
+	}
 
 	for i := range balls {
 		ball := &balls[i]
-		ball.Vy += gravity
+		ball.Vx += gx
+		ball.Vy += gy
 		ball.X += ball.Vx
 		ball.Y += ball.Vy
 
@@ -878,11 +931,40 @@ func updateCanvasTwo() {
 		}
 	}
 
+	// Draw trails
+	for i := range balls {
+		ball := &balls[i]
+		for t := 1; t < TrailLen; t++ {
+			idx := (trailHead[i] - t + TrailLen) % TrailLen
+			tx := int32(ballTrails[i][idx][0])
+			ty := int32(ballTrails[i][idx][1])
+			alpha := float32(TrailLen-t) / float32(TrailLen)
+			tr := colour.Colour{
+				R: uint8(float32(ball.Col.R) * alpha * 0.35),
+				G: uint8(float32(ball.Col.G) * alpha * 0.35),
+				B: uint8(float32(ball.Col.B) * alpha * 0.35),
+				A: 255,
+			}
+			trailR := int32(float32(ball.Radius) * alpha * 0.75)
+			if trailR < 2 {
+				trailR = 2
+			}
+			canvasTwo.ColourFilledCircle(tx, ty, trailR, tr)
+		}
+	}
+
+	// Draw balls with velocity-based glow
 	for i := range balls {
 		ball := &balls[i]
 		bx := int32(ball.X)
 		by := int32(ball.Y)
 		br := int32(ball.Radius)
+
+		speed := float32(math.Sqrt(float64(ball.Vx*ball.Vx + ball.Vy*ball.Vy)))
+		glowExtra := int32(speed * 0.4)
+		if glowExtra > 10 {
+			glowExtra = 10
+		}
 
 		glow := colour.Colour{
 			R: maxUint8(ball.Col.R/3, 20),
@@ -890,14 +972,14 @@ func updateCanvasTwo() {
 			B: maxUint8(ball.Col.B/3, 20),
 			A: 255,
 		}
-		canvasTwo.ColourFilledCircle(bx, by, br+4, glow)
+		canvasTwo.ColourFilledCircle(bx, by, br+4+glowExtra, glow)
 		canvasTwo.ColourFilledCircle(bx, by, br, ball.Col)
 
 		hs := int32(ball.Radius / 3.0)
 		canvasTwo.ColourPutPixel(bx-hs, by-hs, colour.White)
 
 		if i == 0 {
-			canvasTwo.ColourBorderCircle(bx, by, br+8, 2, colour.White)
+			canvasTwo.ColourBorderCircle(bx, by, br+8+glowExtra, 2, colour.White)
 		}
 	}
 
@@ -1101,6 +1183,7 @@ func main() {
 	initBalls()
 	performDemoOnCanvasThree()
 	setDrumButtonText()
+	updateGravityButtonText()
 
 	isReady = true
 
@@ -1177,6 +1260,8 @@ func main() {
 			onDrumCanvasClick()
 		case 7:
 			onDrumPlayPause()
+		case 8:
+			onCycleGravity()
 		}
 		return nil
 	}))
