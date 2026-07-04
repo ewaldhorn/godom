@@ -62,16 +62,64 @@ Key methods on `Handle`:
 
 #### Notable standalone functions
 
+**Element lookup & creation**
+
 | Function | Description |
 |---|---|
 | `GetElementByID(id string) Handle` | Looks up an element; returns `Invalid` if not found |
-| `AddNewStyleElement(css string)` | Injects a `<style>` block with raw CSS into `<head>` at runtime |
+| `CreateElement(tag string) Handle` | Creates a new element of the given tag |
+| `WrapElementWithNewDiv(element Handle, classes []string) Handle` | Wraps an existing element in a new `<div>` with the given CSS classes |
+
+**DOM tree manipulation**
+
+| Function | Description |
+|---|---|
+| `AddElementTo(target, elem Handle)` | Appends a child element to a target element |
+| `AddToBody(elem Handle)` | Appends an element directly to `document.body` |
+| `RemoveAllChildElementsFrom(target Handle)` | Removes all children from an element |
+
+**Visibility & focus**
+
+| Function | Description |
+|---|---|
+| `Hide(id string)` | Sets `display: none` on the element with the given ID |
+| `Show(id string)` | Sets `display: block` on the element with the given ID |
+| `SetFocus(id string)` | Calls `focus()` on the element with the given ID |
+
+**Property access (by ID)**
+
+| Function | Description |
+|---|---|
 | `GetString(elemID, key string) string` | Reads a string property from an element by ID |
 | `SetValue(elemID, key, value string)` | Writes a string property on an element by ID |
-| `WrapElementWithNewDiv(element Handle, classes []string) Handle` | Wraps an existing element in a new `<div>` with the given CSS classes |
+
+**CSS classes (by ID)**
+
+| Function | Description |
+|---|---|
 | `AddClass(elemID, class string)` | Adds a CSS class to an element looked up by ID |
 | `RemoveClass(elemID, class string)` | Removes a CSS class from an element looked up by ID |
-| `StartAnimationLoop(cb js.Value)` | Drives a 60 FPS render loop via `requestAnimationFrame` |
+| `AddNewStyleElement(css string)` | Injects a `<style>` block with raw CSS into `<head>` at runtime |
+
+**Events**
+
+| Function | Description |
+|---|---|
+| `AddEventListener(elem Handle, event string, cb js.Value)` | Registers an event listener on a handle |
+| `AddEventListenerByID(id, event string, cb js.Value)` | Registers an event listener on an element looked up by ID |
+
+**Logging & dialogs**
+
+| Function | Description |
+|---|---|
+| `Log(messages []string)` | Logs a slice of strings to the browser console |
+| `Alert(msg string)` | Shows a browser alert dialog |
+
+**Animation**
+
+| Function | Description |
+|---|---|
+| `StartAnimationLoop(cb js.Value) (stop func())` | Drives a 60 FPS render loop via `requestAnimationFrame`; call the returned function to stop the loop and release the JS closure |
 
 #### `Context2D`
 
@@ -98,7 +146,7 @@ Obtain a `Context2D` from a `canvas.Canvas` instance via `canvas.GetContext2D()`
 
 ### 2. `html`
 
-The [`html`](html/html.go) package implements a fluent tag builder around the `Element` struct. It provides type-safe, chainable tag constructors for most common HTML elements (e.g., `Div()`, `Span()`, `Button()`, `Table()`).
+The [`html`](html/html.go) package implements a fluent tag builder around the `Element` struct. It provides chainable tag constructors for most common HTML elements (e.g., `Div()`, `Span()`, `Button()`, `Table()`). For a tag without a named constructor, use `html.Init(tag)` directly.
 
 Chainable methods on `*Element`:
 
@@ -193,7 +241,13 @@ Predefined constants: `White`, `Black`, `Empty` (fully transparent).
 
 ### 5. `sound`
 
-The [`sound`](sound/sound.go) package contains mathematical algorithms to synthesize audio samples in memory (e.g., click sounds) to be played in the browser.
+The [`sound`](sound/sound.go) package synthesizes audio samples in memory for playback in the browser.
+
+| Function | Description |
+|---|---|
+| `FillClick(buf []float32)` | Fills a buffer with a 50ms triangle-wave click (2kHz→600Hz sweep with exponential decay) |
+
+The sample rate constant `sound.SampleRate` is `44100.0`. Allocate a `[]float32` of the desired length, call `FillClick`, then hand the buffer to the Web Audio API from JavaScript.
 
 ---
 
