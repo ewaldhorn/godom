@@ -6,6 +6,10 @@ Use it to build interactive browser apps entirely in Go — declarative element 
 
 ---
 
+![Godom Preview](preview.png)
+
+---
+
 ## Prerequisites
 
 - **Go 1.26** or later
