@@ -1,7 +1,11 @@
 // Package dom provides a basic DOM manipulation wrapper using syscall/js.
 package dom
 
-import "syscall/js"
+import (
+	"strings"
+	"sync/atomic"
+	"syscall/js"
+)
 
 // ------------------------------------------------------------------------------------------------
 // Handle represents a reference to a live JS object in the browser.
@@ -36,8 +40,13 @@ func (h Handle) IsValid() bool {
 
 // ------------------------------------------------------------------------------------------------
 // Get gets a JS property on the handle as a string.
+// It returns an empty string if the property is undefined or null.
 func (h Handle) Get(key string) string {
-	return js.Value(h).Get(key).String()
+	v := js.Value(h).Get(key)
+	if v.IsUndefined() || v.IsNull() {
+		return ""
+	}
+	return v.String()
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -73,10 +82,7 @@ func (h Handle) RemoveClassFrom(class string) {
 // ------------------------------------------------------------------------------------------------
 // ReplaceClasses replaces all classes on the element with the given list.
 func (h Handle) ReplaceClasses(classes []string) {
-	js.Value(h).Set("className", "")
-	for _, cls := range classes {
-		h.AddClassTo(cls)
-	}
+	js.Value(h).Set("className", strings.Join(classes, " "))
 }
 
 // ================================================================================================
@@ -202,12 +208,17 @@ func SetFocus(id string) {
 
 // ------------------------------------------------------------------------------------------------
 // GetString retrieves a string property from an element by ID.
+// It returns an empty string if the element or the property is missing.
 func GetString(elemID, key string) string {
 	elem := GetElementByID(elemID)
 	if !elem.IsValid() {
 		return ""
 	}
-	return js.Value(elem).Get(key).String()
+	v := js.Value(elem).Get(key)
+	if v.IsUndefined() || v.IsNull() {
+		return ""
+	}
+	return v.String()
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -274,8 +285,8 @@ func AddEventListenerByID(id, event string, cb js.Value) {
 // ================================================================================================
 
 // ------------------------------------------------------------------------------------------------
-// Log logs a slice of strings to the browser developer console.
-func Log(messages []string) {
+// Log logs messages to the browser developer console.
+func Log(messages ...string) {
 	args := make([]any, len(messages))
 	for i, msg := range messages {
 		args[i] = msg
@@ -312,11 +323,16 @@ func CanvasGetContext(canvas Handle) Handle {
 // ------------------------------------------------------------------------------------------------
 // StartAnimationLoop drives a 60 FPS animation cycle via requestAnimationFrame.
 // It returns a stop function; calling it halts the loop and releases the JS closure.
+//
+// The js.Func backing the loop is released on the first tick that observes the
+// stop. It is not released directly in stop(): requestAnimationFrame callbacks
+// cannot be cancelled, and js.Func.Release forbids invoking the function
+// afterwards, so a pending frame would call into a released function.
 func StartAnimationLoop(cb js.Value) (stop func()) {
 	var tick js.Func
-	stopped := false
+	var stopped atomic.Bool
 	tick = js.FuncOf(func(this js.Value, args []js.Value) any {
-		if stopped {
+		if stopped.Load() {
 			tick.Release()
 			return nil
 		}
@@ -325,7 +341,7 @@ func StartAnimationLoop(cb js.Value) (stop func()) {
 		return nil
 	})
 	js.Global().Call("requestAnimationFrame", tick)
-	return func() { stopped = true }
+	return func() { stopped.Store(true) }
 }
 
 // ------------------------------------------------------------------------------------------------

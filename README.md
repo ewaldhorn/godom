@@ -1,6 +1,6 @@
 # Godom — A Go WebAssembly DOM Utility Library
 
-`godom` is a dependency-free wrapper around the browser DOM and Canvas 2D APIs, written in pure Go. It targets standard WebAssembly (`GOOS=js GOARCH=wasm`) via Go 1.26's `syscall/js` layer.
+`godom` is a dependency-free wrapper around the browser DOM and Canvas 2D APIs, written in pure Go. It targets standard WebAssembly (`GOOS=js GOARCH=wasm`) via Go 1.27's `syscall/js` layer.
 
 Use it to build interactive browser apps entirely in Go — declarative element building, pixel-level canvas drawing, event handling, and audio pre-rendering, with no JavaScript frameworks required.
 
@@ -12,7 +12,7 @@ Use it to build interactive browser apps entirely in Go — declarative element 
 
 ## Prerequisites
 
-- **Go 1.26** or later
+- **Go 1.27** or later
 - **Node.js** (for running tests and the included demo — see [`DEVELOPER.md`](DEVELOPER.md))
 
 ---
@@ -227,6 +227,8 @@ func main() {
 | **`colour`** | RGBA struct with presets (`White`, `Black`, `Empty`). `IsEmpty()`, `ConvertToGrayscale()`. Seedable PRNG: `RandomColour()`, `Seed()`. Construct custom colours as `colour.Colour{R: 255, G: 0, B: 0, A: 255}`. |
 | **`sound`** | Audio pre-rendering: `FillClick` generates a triangle-wave click buffer suitable for low-latency browser playback via the Web Audio API. |
 
+> **Note:** `dom.Handle.Get` and `dom.GetString` return an empty string when the requested property is missing — and `GetString` also returns `""` when the element does not exist. They never return the literal JS string `"undefined"`.
+
 ---
 
 ## Running the Included Demo
@@ -234,7 +236,7 @@ func main() {
 This repository includes a feature-rich, high-performance synthwave physics and audio sequencer demo.
 
 ### Prerequisites
-* Go 1.26 or later
+* Go 1.27 or later
 * Node.js (used by `run.sh` via `npx http-server` to serve the demo)
 
 ### Build & Run

@@ -10,7 +10,7 @@ Welcome to the `godom` developer guide! This document covers the package archite
 
 `godom` is a dependency-free, zero-allocation-focused Go package that wraps the browser DOM and Canvas 2D APIs.
 - **Target**: `GOOS=js GOARCH=wasm`
-- **Compiler**: Go 1.26 or later
+- **Compiler**: Go 1.27 or later
 - **Bridge Layer**: `syscall/js` (standard library)
 
 ---
@@ -50,7 +50,7 @@ Key methods on `Handle`:
 | Method | Description |
 |---|---|
 | `IsValid() bool` | Returns `true` if the handle is non-null and non-undefined |
-| `Get(key string) string` | Reads a JS property as a string |
+| `Get(key string) string` | Reads a JS property as a string; returns `""` if the property is undefined or null |
 | `Set(key string, value any)` | Writes an arbitrary value to a JS property |
 | `SetInnerText(text string)` | Sets `innerText` on the element |
 | `SetInnerHTML(html string)` | Sets `innerHTML` on the element |
@@ -90,7 +90,7 @@ Key methods on `Handle`:
 
 | Function | Description |
 |---|---|
-| `GetString(elemID, key string) string` | Reads a string property from an element by ID |
+| `GetString(elemID, key string) string` | Reads a string property from an element by ID; returns `""` if the element or the property is missing |
 | `SetValue(elemID, key, value string)` | Writes a string property on an element by ID |
 
 **CSS classes (by ID)**
@@ -112,7 +112,7 @@ Key methods on `Handle`:
 
 | Function | Description |
 |---|---|
-| `Log(messages []string)` | Logs a slice of strings to the browser console |
+| `Log(messages ...string)` | Logs messages to the browser developer console |
 | `Alert(msg string)` | Shows a browser alert dialog |
 
 **Animation**
@@ -210,7 +210,7 @@ Other key methods:
 | `Height() int` | Returns the canvas height in pixels |
 | `Pixels() []byte` | Returns the pixel buffer slice (shared reference — writes are reflected immediately) |
 | `CanvasHandle() dom.Handle` | Returns the DOM handle for the underlying `<canvas>` element |
-| `ClearScreen(col colour.Colour)` | Fills the entire pixel buffer with one colour using an O(n log n) copy doubling trick |
+| `ClearScreen(col colour.Colour)` | Fills the entire pixel buffer with one colour via exponential copy doubling (O(log n) passes, O(n) total bytes copied) |
 | `SetColour(col colour.Colour)` | Sets the active drawing colour |
 | `GetColour() colour.Colour` | Returns the active drawing colour |
 | `Render()` | Blits the pixel buffer to JavaScript via `CopyBytesToJS` + `putImageData`; no-op on an offscreen canvas |

@@ -60,6 +60,34 @@ func TestNewCanvas(t *testing.T) {
 	}
 }
 
+func TestNewCanvasRejectsInconsistentArgs(t *testing.T) {
+	mustPanic := func(name string, fn func()) {
+		t.Helper()
+		defer func() {
+			if recover() == nil {
+				t.Errorf("%s: expected panic", name)
+			}
+		}()
+		fn()
+	}
+
+	mustPanic("buffer too small", func() {
+		NewCanvas(10, 10, make([]byte, 100), "parent") // 100 != 10*10*4
+	})
+	mustPanic("buffer too large", func() {
+		NewCanvas(10, 10, make([]byte, 10*10*4+1), "parent")
+	})
+	mustPanic("zero width", func() {
+		NewCanvas(0, 10, make([]byte, 10), "parent")
+	})
+	mustPanic("negative height", func() {
+		NewCanvas(10, -1, make([]byte, 10), "parent")
+	})
+	mustPanic("offscreen buffer too small", func() {
+		NewOffscreenCanvas(10, 10, make([]byte, 100))
+	})
+}
+
 func TestPixelOperations(t *testing.T) {
 	pixels := make([]byte, 10*10*4)
 	c := NewCanvas(10, 10, pixels, "parent")

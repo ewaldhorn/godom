@@ -27,7 +27,7 @@ func BenchmarkClearScreenNaive(b *testing.B) {
 }
 
 // ------------------------------------------------------------------------------------------------
-// BenchmarkClearScreenOptimized benchmarks clearing the canvas using the optimized exponential 
+// BenchmarkClearScreenOptimized benchmarks clearing the canvas using the optimized exponential
 // copy loop.
 func BenchmarkClearScreenOptimized(b *testing.B) {
 	pixels := make([]byte, 1920*1080*4)

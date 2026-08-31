@@ -1,5 +1,18 @@
 "use strict";
 
+// Callback IDs for go_invoke_callback (JS -> Go bridge).
+// Keep the values in sync with the cb* constants in demo/demo.go.
+const CALLBACKS = Object.freeze({
+  ADD_SOMETHING: 0,
+  CLEAR_ASIDE: 1,
+  REFRESH_CANVAS: 2,
+  ANIMATION_TICK: 3,
+  CANVAS_INTERACT: 4,
+  DRUM_CANVAS_CLICK: 5,
+  DRUM_PLAY_PAUSE: 6,
+  CYCLE_GRAVITY: 7,
+});
+
 let audioCtx = null;
 let synthNode = null;
 let gainNode = null;
@@ -190,6 +203,14 @@ function initializeInteractions() {
     if (btn) btn.addEventListener('click', playClickSound);
   });
 
+  // Gravity mode cycle button — routed through the JS->Go bridge
+  const gravityBtn = document.getElementById("gravityButton");
+  if (gravityBtn) {
+    gravityBtn.addEventListener("click", function () {
+      go_invoke_callback(CALLBACKS.CYCLE_GRAVITY);
+    });
+  }
+
   // Touch / Click interaction for the physics canvas (canvas two)
   const canvasTwoDiv = document.getElementById("canvasTwoDiv");
   if (canvasTwoDiv) {
@@ -210,7 +231,7 @@ function initializeInteractions() {
       const x = Math.round((clientX - cachedRectTwo.left) * scaleX);
       const y = Math.round((clientY - cachedRectTwo.top) * scaleY);
       go_set_interaction(x, y);
-      go_invoke_callback(4); // 4 = onCanvasInteraction
+      go_invoke_callback(CALLBACKS.CANVAS_INTERACT);
     };
 
     canvasTwoDiv.addEventListener("mousedown", (e) => {
@@ -268,7 +289,7 @@ function initializeInteractions() {
       const x = Math.round((clientX - cachedRectThree.left) * scaleX);
       const y = Math.round((clientY - cachedRectThree.top) * scaleY);
       go_set_interaction(x, y);
-      go_invoke_callback(6); // 6 = onDrumCanvasClick
+      go_invoke_callback(CALLBACKS.DRUM_CANVAS_CLICK);
     };
 
     canvasThreeDiv.addEventListener("mousedown", (e) => {

@@ -131,6 +131,26 @@ func TestGetSet(t *testing.T) {
 	}
 }
 
+func TestGetMissingProperty(t *testing.T) {
+	Init()
+
+	// A missing property on a valid element must yield an empty string,
+	// not the literal JS string "undefined".
+	el := CreateElement("div")
+	if val := el.Get("missing"); val != "" {
+		t.Errorf("expected empty string for missing property, got '%s'", val)
+	}
+
+	// By-ID accessor: missing property on an existing element.
+	SetValue("prop-elem", "exists", "42")
+	if val := GetString("prop-elem", "missing"); val != "" {
+		t.Errorf("expected empty string for missing property, got '%s'", val)
+	}
+	if val := GetString("prop-elem", "exists"); val != "42" {
+		t.Errorf("expected '42', got '%s'", val)
+	}
+}
+
 func TestInnerTextAndHTML(t *testing.T) {
 	el := CreateElement("span")
 	el.SetInnerText("test-text")
@@ -302,7 +322,7 @@ func TestEvents(t *testing.T) {
 }
 
 func TestHelpers(t *testing.T) {
-	Log([]string{"message1", "message2"})
+	Log("message1", "message2")
 	lastLog := js.Global().Get("lastLog").String()
 	if lastLog != "message1 message2" {
 		t.Errorf("expected logged output 'message1 message2', got '%s'", lastLog)

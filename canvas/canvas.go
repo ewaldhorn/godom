@@ -2,6 +2,7 @@
 package canvas
 
 import (
+	"fmt"
 	"math"
 	"syscall/js"
 
@@ -29,9 +30,23 @@ type Canvas struct {
 // ================================================================================================
 
 // ------------------------------------------------------------------------------------------------
+// validateCanvasArgs panics with a clear message if the declared dimensions or the pixel buffer
+// are inconsistent. In-browser, new ImageData would otherwise throw an obscure RangeError;
+// offscreen canvases would silently misbehave instead.
+func validateCanvasArgs(width, height int, pixels []byte) {
+	if width <= 0 || height <= 0 {
+		panic(fmt.Sprintf("godom: canvas: width and height must be positive, got %dx%d", width, height))
+	}
+	if int64(len(pixels)) != int64(width)*int64(height)*4 {
+		panic(fmt.Sprintf("godom: canvas: pixel buffer length %d does not match %dx%d (want %d)", len(pixels), width, height, int64(width)*int64(height)*4))
+	}
+}
+
+// ------------------------------------------------------------------------------------------------
 // NewCanvas creates a canvas in-memory and associates it with a new canvas element appended to
 // the DOM element identified by parentID.
 func NewCanvas(width, height int, pixels []byte, parentID string) *Canvas {
+	validateCanvasArgs(width, height, pixels)
 	parentHandle := dom.GetElementByID(parentID)
 	if !parentHandle.IsValid() {
 		panic("godom: NewCanvas: no DOM element with id " + parentID)
@@ -60,6 +75,7 @@ func NewCanvas(width, height int, pixels []byte, parentID string) *Canvas {
 // objects attached. Useful for benchmarking and unit testing. Calling Render() on an offscreen
 // canvas is a no-op.
 func NewOffscreenCanvas(width, height int, pixels []byte) *Canvas {
+	validateCanvasArgs(width, height, pixels)
 	return &Canvas{
 		width:        width,
 		height:       height,

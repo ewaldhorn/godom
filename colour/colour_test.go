@@ -65,7 +65,7 @@ func TestSeedAndRandomColour(t *testing.T) {
 	// Verify that a seed of 0 is ignored
 	Seed(0) // should not change rngState
 	c3 := RandomColour()
-	
+
 	Seed(42)
 	_ = RandomColour()
 	_ = RandomColour()

@@ -58,14 +58,14 @@ type COneObstacle struct {
 }
 
 var (
-	cOneObstacles   [MaxCOneObstacles]COneObstacle
-	cOneSpawnTimer  uint32
-	cOneShipX       float32 = 400
-	cOneShipTargetX float32 = 400
-	cOneShipBank    float32
+	cOneObstacles    [MaxCOneObstacles]COneObstacle
+	cOneSpawnTimer   uint32
+	cOneShipX        float32 = 400
+	cOneShipTargetX  float32 = 400
+	cOneShipBank     float32
 	cOneDecisionTick uint32
-	cOneDodgeScore  uint32
-	cOneInited      bool
+	cOneDodgeScore   uint32
+	cOneInited       bool
 )
 
 // Click sound buffer — pre-rendered 50ms UI click (2205 samples at 44.1kHz)
@@ -220,6 +220,19 @@ var (
 // ------------------------------------------------------------------------------------------------
 // Callback dispatch
 // ------------------------------------------------------------------------------------------------
+
+// Callback IDs used by go_invoke_callback (the JS -> Go bridge).
+// Keep the values in sync with the CALLBACKS object in docs/app.js.
+const (
+	cbAddSomething uint32 = iota
+	cbClearAside
+	cbRefreshCanvas
+	cbAnimationTick
+	cbCanvasInteract
+	cbDrumCanvasClick
+	cbDrumPlayPause
+	cbCycleGravity
+)
 
 func onAddSomethingClick() {
 	if !isReady {
@@ -925,8 +938,9 @@ func drawLaserGrid(w, h, horizon int32, scrollOffset float64, t Theme) {
 			c := curveAmp * prog * math.Sin(prog*math.Pi*2.0+curvePhase)
 			left := int32(10.0 + c)
 			right := int32(float64(w-10) + c)
-			canvasOne.ColourLine(left, y, right, y, t.violet)
-			canvasOne.ColourLine(left, y, right, y, t.magenta)
+			mid := int32(float64(w/2) + c)
+			canvasOne.ColourLine(left, y, mid, y, t.violet)
+			canvasOne.ColourLine(mid+1, y, right, y, t.magenta)
 		}
 		i += 1.0
 	}
@@ -1398,7 +1412,7 @@ func drawOneGlyph(ch uint8, x, y, scale int32, c colour.Colour) {
 
 func main() {
 	dom.Init()
-	dom.Log([]string{"Ok.", "Godom is starting.", "Here we go!"})
+	dom.Log("Ok.", "Godom is starting.", "Here we go!")
 
 	toggleElements()
 	setTitle()
@@ -1442,13 +1456,13 @@ func main() {
 	// Canvas pixel readback demo
 	px, ok := canvasOne.GetPixel(0, 0)
 	if ok && !px.IsEmpty() {
-		dom.Log([]string{"Canvas One pixel (0,0): non-empty after render."})
+		dom.Log("Canvas One pixel (0,0): non-empty after render.")
 	}
 
 	// DOM ID-based property access demo (setValue + getString)
 	dom.SetValue("title", "lang", "en")
 	lang := dom.GetString("title", "lang")
-	dom.Log([]string{"dom.getString() on #title:", lang})
+	dom.Log("dom.getString() on #title:", lang)
 
 	// replaceClasses demo on title
 	titleHandle := dom.GetElementByID("title")
@@ -1472,7 +1486,7 @@ func main() {
 
 	showcaseHeading.Set("title", "Created via handle-based dom.set() API")
 	readback := showcaseHeading.Get("title")
-	dom.Log([]string{"dom.get() on showcase heading:", readback})
+	dom.Log("dom.get() on showcase heading:", readback)
 
 	// Exercise dom.wrapElementWithNewDiv()
 	showcaseP := dom.CreateParagraphWithText("This paragraph was wrapped via dom.wrapElementWithNewDiv()")
@@ -1484,36 +1498,44 @@ func main() {
 
 	// Exercise addEventListener by handle
 	dom.AddEventListener(articleElement, "click", js.FuncOf(func(this js.Value, args []js.Value) any {
-		dom.Log([]string{"Handle-based event listener fired on article element."})
+		dom.Log("Handle-based event listener fired on article element.")
 		return nil
 	}).Value)
 
 	// Expose interaction variables and invoke_callback to JS
 	js.Global().Set("go_set_interaction", js.FuncOf(func(this js.Value, args []js.Value) any {
+		if len(args) < 2 {
+			return nil
+		}
 		interactX = int32(args[0].Int())
 		interactY = int32(args[1].Int())
 		return nil
 	}))
 
 	js.Global().Set("go_invoke_callback", js.FuncOf(func(this js.Value, args []js.Value) any {
+		if len(args) < 1 {
+			return nil
+		}
 		id := uint32(args[0].Int())
 		switch id {
-		case 0:
+		case cbAddSomething:
 			onAddSomethingClick()
-		case 1:
+		case cbClearAside:
 			onClearAsideClick()
-		case 2:
+		case cbRefreshCanvas:
 			onRefreshCanvasOneClick()
-		case 3:
+		case cbAnimationTick:
 			onAnimationTick()
-		case 4:
+		case cbCanvasInteract:
 			onCanvasInteraction()
-		case 6:
+		case cbDrumCanvasClick:
 			onDrumCanvasClick()
-		case 7:
+		case cbDrumPlayPause:
 			onDrumPlayPause()
-		case 8:
+		case cbCycleGravity:
 			onCycleGravity()
+		default:
+			dom.Log(fmt.Sprintf("go_invoke_callback: unknown callback id %d", id))
 		}
 		return nil
 	}))
@@ -1527,9 +1549,12 @@ func main() {
 	}))
 
 	js.Global().Set("go_drum_is_beat_active", js.FuncOf(func(this js.Value, args []js.Value) any {
+		if len(args) < 2 {
+			return 0
+		}
 		track := args[0].Int()
 		step := args[1].Int()
-		if track >= DrumTracks || step >= DrumSteps {
+		if track < 0 || step < 0 || track >= DrumTracks || step >= DrumSteps {
 			return 0
 		}
 		if drumPattern[track][step] {
