@@ -14,8 +14,8 @@
 package main
 
 import (
-	"fmt"
 	"math"
+	"strconv"
 
 	"github.com/ewaldhorn/godom/canvas_cmd"
 	"github.com/ewaldhorn/godom/dom"
@@ -333,7 +333,7 @@ func drawCanvasFourRipples(b *canvas_cmd.Buffer) {
 		t := r.Age / RippleLifetime
 		radius := 8.0 + t*46.0
 		alpha := (1.0 - t) * 0.6
-		b.SetStroke(fmt.Sprintf("rgba(255,255,255,%.2f)", alpha))
+		b.SetStroke("rgba(255,255,255," + strconv.FormatFloat(float64(alpha), 'f', 2, 32) + ")")
 		b.SetLineWidth(2)
 		b.BeginPath()
 		b.Ellipse(r.X, r.Y, radius, radius*0.35, 0, 0, tau)
@@ -347,11 +347,8 @@ func updateCanvasFourHud() {
 	if !elem.IsValid() {
 		return
 	}
-	elem.SetInnerText(fmt.Sprintf(
-		"%d Canvas2D commands batched into 1 WASM→JS call this frame (canvas_cmd) — vs %d individual bridge crossings without it",
-		canvasFourOpCount,
-		canvasFourOpCount,
-	))
+	count := strconv.Itoa(canvasFourOpCount)
+	elem.SetInnerText(count + " Canvas2D commands batched into 1 WASM→JS call this frame (canvas_cmd) — vs " + count + " individual bridge crossings without it")
 }
 
 // spawnCanvasFourRipple activates a ripple at (x, y), reusing the oldest ripple slot once all

@@ -2,8 +2,8 @@
 package canvas
 
 import (
-	"fmt"
 	"math"
+	"strconv"
 	"syscall/js"
 
 	"github.com/ewaldhorn/godom/colour"
@@ -35,10 +35,10 @@ type Canvas struct {
 // offscreen canvases would silently misbehave instead.
 func validateCanvasArgs(width, height int, pixels []byte) {
 	if width <= 0 || height <= 0 {
-		panic(fmt.Sprintf("godom: canvas: width and height must be positive, got %dx%d", width, height))
+		panic("godom: canvas: width and height must be positive, got " + strconv.Itoa(width) + "x" + strconv.Itoa(height))
 	}
 	if int64(len(pixels)) != int64(width)*int64(height)*4 {
-		panic(fmt.Sprintf("godom: canvas: pixel buffer length %d does not match %dx%d (want %d)", len(pixels), width, height, int64(width)*int64(height)*4))
+		panic("godom: canvas: pixel buffer length " + strconv.Itoa(len(pixels)) + " does not match " + strconv.Itoa(width) + "x" + strconv.Itoa(height) + " (want " + strconv.FormatInt(int64(width)*int64(height)*4, 10) + ")")
 	}
 }
 

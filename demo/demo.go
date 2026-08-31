@@ -2,8 +2,8 @@ package main
 
 import (
 	_ "embed"
-	"fmt"
 	"math"
+	"strconv"
 	"syscall/js"
 	"unsafe"
 
@@ -418,8 +418,8 @@ func playCurrentDrumStep() {
 
 func addBoo() {
 	booCounter++
-	text := fmt.Sprintf("Boo! (%d)", booCounter)
-	id := fmt.Sprintf("boo-%d", booCounter)
+	text := "Boo! (" + strconv.FormatUint(uint64(booCounter), 10) + ")"
+	id := "boo-" + strconv.FormatUint(uint64(booCounter), 10)
 	_ = html.P().
 		ID(id).
 		Attr("data-count", text).
@@ -438,7 +438,7 @@ func addRandomParagraph() {
 
 func addAsideNote() {
 	idx := int(nextRandom()) % len(facts)
-	id := fmt.Sprintf("note-%d", booCounter)
+	id := "note-" + strconv.FormatUint(uint64(booCounter), 10)
 	_ = html.Div().
 		Class("aside-note").
 		Class(randomCssColour()).
@@ -449,7 +449,7 @@ func addAsideNote() {
 
 func addAsideTag() {
 	idx := int(nextRandom()) % len(tags)
-	id := fmt.Sprintf("tag-%d", booCounter)
+	id := "tag-" + strconv.FormatUint(uint64(booCounter), 10)
 	_ = html.Span().
 		Class("aside-tag").
 		Class(randomCssColour()).
@@ -464,7 +464,7 @@ func addAsideTag() {
 
 func addAsideQuip() {
 	idx := int(nextRandom()) % len(quips)
-	id := fmt.Sprintf("quip-%d", booCounter)
+	id := "quip-" + strconv.FormatUint(uint64(booCounter), 10)
 	_ = html.Div().
 		Class("aside-quip").
 		ID(id).
@@ -488,7 +488,7 @@ func populateArticleElement() {
 }
 
 func setTitle() {
-	title := fmt.Sprintf("%s v%s", Name, Version)
+	title := Name + " v" + Version
 	elem := dom.GetElementByID("title")
 	if elem.IsValid() {
 		elem.SetInnerText(title)
@@ -1541,7 +1541,7 @@ func main() {
 		case cbCanvasFourInteract:
 			onCanvasFourInteraction()
 		default:
-			dom.Log(fmt.Sprintf("go_invoke_callback: unknown callback id %d", id))
+			dom.Log("go_invoke_callback: unknown callback id " + strconv.FormatUint(uint64(id), 10))
 		}
 		return nil
 	}))
