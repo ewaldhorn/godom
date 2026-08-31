@@ -25,7 +25,7 @@ var bodyStyle string
 var dommieText string
 
 const (
-	Version = "0.0.3"
+	Version = "0.0.4"
 	Name    = "Godom Demo"
 )
 
@@ -232,6 +232,7 @@ const (
 	cbDrumCanvasClick
 	cbDrumPlayPause
 	cbCycleGravity
+	cbCanvasFourInteract
 )
 
 func onAddSomethingClick() {
@@ -284,6 +285,7 @@ func onAnimationTick() {
 	performDemoOnCanvasOne()
 	updateCanvasTwo()
 	performDemoOnCanvasThree()
+	updateCanvasFour()
 }
 
 func onCanvasInteraction() {
@@ -1445,6 +1447,8 @@ func main() {
 	canvasTwo = canvas.NewCanvas(600, 450, canvasTwoBuffer[:], "canvasTwoDiv")
 	canvasThree = canvas.NewCanvas(DrumCanvasW, DrumCanvasH, canvasThreeBuffer[:], "canvasThreeDiv")
 
+	initCanvasFour()
+
 	performDemoOnCanvasOne()
 	initBalls()
 	performDemoOnCanvasThree()
@@ -1534,6 +1538,8 @@ func main() {
 			onDrumPlayPause()
 		case cbCycleGravity:
 			onCycleGravity()
+		case cbCanvasFourInteract:
+			onCanvasFourInteraction()
 		default:
 			dom.Log(fmt.Sprintf("go_invoke_callback: unknown callback id %d", id))
 		}

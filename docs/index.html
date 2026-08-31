@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Godom — A Go WebAssembly DOM utility library demo featuring canvas drawing primitives, interactive physics simulation, and a drum sequencer." />
+    <meta name="description" content="Godom — A Go WebAssembly DOM utility library demo featuring canvas drawing primitives, interactive physics simulation, a drum sequencer, and a grove & pond scene rendered via batched Canvas2D commands." />
     <script src="wasm_exec.js"></script>
     <title>Godom Demo</title>
     <link href="styles.css" rel="stylesheet" />
@@ -45,6 +45,14 @@
     <!-- Canvas Three: drum machine sequencer -->
     <div id="canvasThreeDiv" class="canvas-container canvas-interactive" title="Click or tap to toggle sequencer steps!">
       <div class="canvas-hint">Click or tap to toggle sequencer steps!</div>
+    </div>
+
+    <!-- Canvas Four: Grove & Pond, rendered entirely via canvas_cmd (batched Canvas2D commands) -->
+    <div id="canvasFourDiv" class="canvas-container canvas-interactive canvas-smooth" title="Click the pond to make ripples!">
+      <div class="canvas-hint">Click the pond to make ripples!</div>
+      <div class="canvas-controls">
+        <span id="canvasFourHud" class="canvas-hud"></span>
+      </div>
     </div>
 
     <hr />
