@@ -13,7 +13,7 @@ type Handle js.Value
 
 // ------------------------------------------------------------------------------------------------
 // Invalid represents a null/invalid handle.
-var Invalid Handle
+var Invalid = Handle(js.Null())
 
 // ------------------------------------------------------------------------------------------------
 // Global element references.
@@ -308,8 +308,8 @@ func Alert(msg string) {
 // CanvasCreate creates a canvas element and appends it to parent.
 func CanvasCreate(parent Handle, width, height int) Handle {
 	canvas := CreateElement("canvas")
-	canvas.Set("width", js.ValueOf(width))
-	canvas.Set("height", js.ValueOf(height))
+	canvas.Set("width", width)
+	canvas.Set("height", height)
 	AddElementTo(parent, canvas)
 	return canvas
 }

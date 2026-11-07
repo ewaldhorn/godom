@@ -95,8 +95,62 @@ func TestResetRewinds(t *testing.T) {
 	if b.Len() != 0 {
 		t.Fatalf("Reset: len = %d, want 0", b.Len())
 	}
+	if b.OpCount() != 0 {
+		t.Fatalf("Reset: opCount = %d, want 0", b.OpCount())
+	}
 	b.FillRect(0, 0, 1, 1)
 	if b.Len() != 1+4*4 {
 		t.Fatalf("after re-record: len = %d, want %d", b.Len(), 1+4*4)
 	}
+	if b.OpCount() != 1 {
+		t.Fatalf("after re-record: opCount = %d, want 1", b.OpCount())
+	}
 }
+
+func TestOpCount(t *testing.T) {
+	b := NewBuffer()
+	if b.OpCount() != 0 {
+		t.Fatalf("initial opCount: got %d, want 0", b.OpCount())
+	}
+	b.BeginPath()
+	b.MoveTo(0, 0)
+	b.LineTo(10, 10)
+	b.Stroke()
+	if b.OpCount() != 4 {
+		t.Fatalf("opCount after 4 ops: got %d, want 4", b.OpCount())
+	}
+	b.Reset()
+	if b.OpCount() != 0 {
+		t.Fatalf("opCount after reset: got %d, want 0", b.OpCount())
+	}
+}
+
+func TestOverflow(t *testing.T) {
+	b := NewBuffer()
+	if b.Overflowed() {
+		t.Fatal("new buffer should not be overflowed")
+	}
+	// Artificially simulate near-capacity buffer (2 bytes remaining)
+	b.data = make([]byte, Capacity-2)
+	b.FillRect(0, 0, 10, 10) // writes 1-byte op, then overflows on first 4-byte f32
+	if !b.Overflowed() {
+		t.Fatal("buffer should be marked overflowed after exceeding capacity")
+	}
+	lenAfterOverflow := b.Len()
+	opsAfterOverflow := b.OpCount()
+
+	// Subsequent ops should be completely ignored once overflowed, even 1-byte ops that would fit
+	b.BeginPath()
+	if b.Len() != lenAfterOverflow {
+		t.Fatalf("buffer continued writing after overflow: len = %d, want %d", b.Len(), lenAfterOverflow)
+	}
+	if b.OpCount() != opsAfterOverflow {
+		t.Fatalf("buffer incremented opCount after overflow: got %d, want %d", b.OpCount(), opsAfterOverflow)
+	}
+
+	b.Reset()
+	if b.Overflowed() {
+		t.Fatal("buffer should reset overflow flag on Reset()")
+	}
+}
+

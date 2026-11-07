@@ -183,6 +183,16 @@ func TestDrawingShapes(t *testing.T) {
 	// Draw Triangle
 	c.Triangle(Point{X: 0, Y: 0}, Point{X: 19, Y: 0}, Point{X: 10, Y: 10})
 
+	// Draw clipped line (starting far off-screen and ending far off-screen, passing through center)
+	c.ColourLine(-100, 10, 100, 10, colour.White)
+	col, gotOK := c.GetPixel(10, 10)
+	if !gotOK || col != colour.White {
+		t.Errorf("expected clipped line through (10,10) to be White, got %+v", col)
+	}
+
+	// Completely offscreen line should not panic or draw anything
+	c.ColourLine(-50, -50, -10, -10, colour.White)
+
 	// Call Render to verify it executes without errors
 	c.Render()
 

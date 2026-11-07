@@ -154,9 +154,94 @@ func (c *Canvas) GetColour() colour.Colour {
 // ================================================================================================
 
 // ------------------------------------------------------------------------------------------------
+// clipLine clips a 2D line segment to the canvas rectangle [0, width-1] x [0, height-1] using
+// the Cohen-Sutherland algorithm. Returns false if the line is completely outside.
+func (c *Canvas) clipLine(x1, y1, x2, y2 int32) (int32, int32, int32, int32, bool) {
+	const (
+		inside = 0      // 0000
+		left   = 1 << 0 // 0001
+		right  = 1 << 1 // 0010
+		bottom = 1 << 2 // 0100
+		top    = 1 << 3 // 1000
+	)
+
+	xMin, yMin := int32(0), int32(0)
+	xMax, yMax := int32(c.width-1), int32(c.height-1)
+
+	computeOutCode := func(x, y int32) int {
+		code := inside
+		if x < xMin {
+			code |= left
+		} else if x > xMax {
+			code |= right
+		}
+		if y < yMin {
+			code |= bottom
+		} else if y > yMax {
+			code |= top
+		}
+		return code
+	}
+
+	code1 := computeOutCode(x1, y1)
+	code2 := computeOutCode(x2, y2)
+
+	for {
+		if (code1 | code2) == 0 {
+			// Both points inside
+			return x1, y1, x2, y2, true
+		}
+		if (code1 & code2) != 0 {
+			// Both points share an outside zone: trivially reject
+			return 0, 0, 0, 0, false
+		}
+
+		// At least one point is outside
+		var codeOut int
+		if code1 != 0 {
+			codeOut = code1
+		} else {
+			codeOut = code2
+		}
+
+		var x, y int32
+		dx := int64(x2 - x1)
+		dy := int64(y2 - y1)
+
+		if (codeOut & top) != 0 {
+			x = int32(int64(x1) + dx*int64(yMax-y1)/dy)
+			y = yMax
+		} else if (codeOut & bottom) != 0 {
+			x = int32(int64(x1) + dx*int64(yMin-y1)/dy)
+			y = yMin
+		} else if (codeOut & right) != 0 {
+			y = int32(int64(y1) + dy*int64(xMax-x1)/dx)
+			x = xMax
+		} else if (codeOut & left) != 0 {
+			y = int32(int64(y1) + dy*int64(xMin-x1)/dx)
+			x = xMin
+		}
+
+		if codeOut == code1 {
+			x1, y1 = x, y
+			code1 = computeOutCode(x1, y1)
+		} else {
+			x2, y2 = x, y
+			code2 = computeOutCode(x2, y2)
+		}
+	}
+}
+
+// ------------------------------------------------------------------------------------------------
 // Line draws a 1-pixel line from (x1, y1) to (x2, y2) using Bresenham's algorithm and the active
-// color.
+// color. Lines extending outside the canvas boundary are clipped first.
 func (c *Canvas) Line(x1, y1, x2, y2 int32) {
+	var ok bool
+	x1, y1, x2, y2, ok = c.clipLine(x1, y1, x2, y2)
+	if !ok {
+		return
+	}
+
 	diffX := abs(x2 - x1)
 	diffY := abs(y2 - y1)
 	var slopeX, slopeY int32

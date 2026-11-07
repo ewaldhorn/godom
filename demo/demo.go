@@ -1547,7 +1547,7 @@ func main() {
 	}))
 
 	js.Global().Set("go_get_click_buffer", js.FuncOf(func(this js.Value, args []js.Value) any {
-		byteSlice := unsafe.Slice((*byte)(unsafe.Pointer(&clickBuffer[0])), len(clickBuffer)*4)
+		byteSlice := unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(clickBuffer[:]))), len(clickBuffer)*4)
 		uint8Array := js.Global().Get("Uint8Array").New(len(byteSlice))
 		js.CopyBytesToJS(uint8Array, byteSlice)
 		float32Array := js.Global().Get("Float32Array").New(uint8Array.Get("buffer"), uint8Array.Get("byteOffset"), len(clickBuffer))

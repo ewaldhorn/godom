@@ -93,6 +93,7 @@ const (
 // Buffer is a fixed-capacity command arena, reused across frames.
 type Buffer struct {
 	data       []byte
+	opCount    int
 	overflowed bool
 }
 
@@ -104,6 +105,7 @@ func NewBuffer() *Buffer {
 // Reset rewinds the buffer to empty. Call once at the start of every frame.
 func (b *Buffer) Reset() {
 	b.data = b.data[:0]
+	b.opCount = 0
 	b.overflowed = false
 }
 
@@ -112,12 +114,22 @@ func (b *Buffer) Len() int {
 	return len(b.data)
 }
 
+// OpCount returns the number of Canvas2D commands currently recorded in the buffer.
+func (b *Buffer) OpCount() int {
+	return b.opCount
+}
+
+// Overflowed reports whether the buffer exceeded its preallocated capacity.
+func (b *Buffer) Overflowed() bool {
+	return b.overflowed
+}
+
 // Flush replays the recorded commands onto ctx, then leaves the buffer as-is (call Reset next
-// frame). No-op if nothing was recorded. The frame is copied into a JS-owned Uint8Array — Go
-// cannot hand JS a pointer into its own heap — but this is still exactly ONE WASM->JS crossing
-// per flush.
+// frame). No-op if nothing was recorded or if the buffer overflowed. The frame is copied into
+// a JS-owned Uint8Array — Go cannot hand JS a pointer into its own heap — but this is still
+// exactly ONE WASM->JS crossing per flush.
 func (b *Buffer) Flush(ctx dom.Handle) {
-	if len(b.data) == 0 {
+	if len(b.data) == 0 || b.overflowed {
 		return
 	}
 	bytes := js.Global().Get("Uint8Array").New(len(b.data))
@@ -130,8 +142,17 @@ func (b *Buffer) Flush(ctx dom.Handle) {
 // recorded data is discarded next frame via Reset.
 // ------------------------------------------------------------------------------------------------
 
+func (b *Buffer) putOp(op uint8) {
+	if b.overflowed || len(b.data)+1 > Capacity {
+		b.overflowed = true
+		return
+	}
+	b.opCount++
+	b.data = append(b.data, op)
+}
+
 func (b *Buffer) putU8(v uint8) {
-	if len(b.data)+1 > Capacity {
+	if b.overflowed || len(b.data)+1 > Capacity {
 		b.overflowed = true
 		return
 	}
@@ -139,7 +160,7 @@ func (b *Buffer) putU8(v uint8) {
 }
 
 func (b *Buffer) putU16(v uint16) {
-	if len(b.data)+2 > Capacity {
+	if b.overflowed || len(b.data)+2 > Capacity {
 		b.overflowed = true
 		return
 	}
@@ -147,7 +168,7 @@ func (b *Buffer) putU16(v uint16) {
 }
 
 func (b *Buffer) putF32(v float32) {
-	if len(b.data)+4 > Capacity {
+	if b.overflowed || len(b.data)+4 > Capacity {
 		b.overflowed = true
 		return
 	}
@@ -160,7 +181,7 @@ func (b *Buffer) putStr(s string) {
 	if n > 0xFFFF {
 		n = 0xFFFF
 	}
-	if len(b.data)+2+n > Capacity {
+	if b.overflowed || len(b.data)+2+n > Capacity {
 		b.overflowed = true
 		return
 	}
@@ -172,41 +193,41 @@ func (b *Buffer) putStr(s string) {
 // State setters.
 // ------------------------------------------------------------------------------------------------
 
-func (b *Buffer) SetFill(color string)   { b.putU8(OpSetFill); b.putStr(color) }
-func (b *Buffer) SetStroke(color string) { b.putU8(OpSetStroke); b.putStr(color) }
-func (b *Buffer) SetLineWidth(w float32) { b.putU8(OpSetLineWidth); b.putF32(w) }
-func (b *Buffer) SetFont(font string)    { b.putU8(OpSetFont); b.putStr(font) }
+func (b *Buffer) SetFill(color string)   { b.putOp(OpSetFill); b.putStr(color) }
+func (b *Buffer) SetStroke(color string) { b.putOp(OpSetStroke); b.putStr(color) }
+func (b *Buffer) SetLineWidth(w float32) { b.putOp(OpSetLineWidth); b.putF32(w) }
+func (b *Buffer) SetFont(font string)    { b.putOp(OpSetFont); b.putStr(font) }
 func (b *Buffer) SetTextAlign(align string) {
-	b.putU8(OpSetTextAlign)
+	b.putOp(OpSetTextAlign)
 	b.putStr(align)
 }
 func (b *Buffer) SetTextBaseline(baseline string) {
-	b.putU8(OpSetTextBaseline)
+	b.putOp(OpSetTextBaseline)
 	b.putStr(baseline)
 }
-func (b *Buffer) SetGlobalAlpha(a float32) { b.putU8(OpSetGlobalAlpha); b.putF32(a) }
-func (b *Buffer) SetLineCap(cap string)    { b.putU8(OpSetLineCap); b.putStr(cap) }
+func (b *Buffer) SetGlobalAlpha(a float32) { b.putOp(OpSetGlobalAlpha); b.putF32(a) }
+func (b *Buffer) SetLineCap(cap string)    { b.putOp(OpSetLineCap); b.putStr(cap) }
 
 // ------------------------------------------------------------------------------------------------
 // Rectangles.
 // ------------------------------------------------------------------------------------------------
 
 func (b *Buffer) FillRect(x, y, w, h float32) {
-	b.putU8(OpFillRect)
+	b.putOp(OpFillRect)
 	b.putF32(x)
 	b.putF32(y)
 	b.putF32(w)
 	b.putF32(h)
 }
 func (b *Buffer) StrokeRect(x, y, w, h float32) {
-	b.putU8(OpStrokeRect)
+	b.putOp(OpStrokeRect)
 	b.putF32(x)
 	b.putF32(y)
 	b.putF32(w)
 	b.putF32(h)
 }
 func (b *Buffer) ClearRect(x, y, w, h float32) {
-	b.putU8(OpClearRect)
+	b.putOp(OpClearRect)
 	b.putF32(x)
 	b.putF32(y)
 	b.putF32(w)
@@ -217,24 +238,24 @@ func (b *Buffer) ClearRect(x, y, w, h float32) {
 // Paths.
 // ------------------------------------------------------------------------------------------------
 
-func (b *Buffer) BeginPath() { b.putU8(OpBeginPath) }
-func (b *Buffer) ClosePath() { b.putU8(OpClosePath) }
-func (b *Buffer) Fill()      { b.putU8(OpFill) }
-func (b *Buffer) Stroke()    { b.putU8(OpStroke) }
-func (b *Buffer) Clip()      { b.putU8(OpClip) }
+func (b *Buffer) BeginPath() { b.putOp(OpBeginPath) }
+func (b *Buffer) ClosePath() { b.putOp(OpClosePath) }
+func (b *Buffer) Fill()      { b.putOp(OpFill) }
+func (b *Buffer) Stroke()    { b.putOp(OpStroke) }
+func (b *Buffer) Clip()      { b.putOp(OpClip) }
 
 func (b *Buffer) MoveTo(x, y float32) {
-	b.putU8(OpMoveTo)
+	b.putOp(OpMoveTo)
 	b.putF32(x)
 	b.putF32(y)
 }
 func (b *Buffer) LineTo(x, y float32) {
-	b.putU8(OpLineTo)
+	b.putOp(OpLineTo)
 	b.putF32(x)
 	b.putF32(y)
 }
 func (b *Buffer) Rect(x, y, w, h float32) {
-	b.putU8(OpRect)
+	b.putOp(OpRect)
 	b.putF32(x)
 	b.putF32(y)
 	b.putF32(w)
@@ -243,7 +264,7 @@ func (b *Buffer) Rect(x, y, w, h float32) {
 
 // Arc appends an arc to the current path. ccw is optional (default false).
 func (b *Buffer) Arc(x, y, r, a0, a1 float32, ccw ...bool) {
-	b.putU8(OpArc)
+	b.putOp(OpArc)
 	b.putF32(x)
 	b.putF32(y)
 	b.putF32(r)
@@ -254,7 +275,7 @@ func (b *Buffer) Arc(x, y, r, a0, a1 float32, ccw ...bool) {
 
 // Ellipse appends an ellipse to the current path. ccw is optional (default false).
 func (b *Buffer) Ellipse(x, y, rx, ry, rot, a0, a1 float32, ccw ...bool) {
-	b.putU8(OpEllipse)
+	b.putOp(OpEllipse)
 	b.putF32(x)
 	b.putF32(y)
 	b.putF32(rx)
@@ -270,13 +291,13 @@ func (b *Buffer) Ellipse(x, y, rx, ry, rot, a0, a1 float32, ccw ...bool) {
 // ------------------------------------------------------------------------------------------------
 
 func (b *Buffer) FillText(text string, x, y float32) {
-	b.putU8(OpFillText)
+	b.putOp(OpFillText)
 	b.putStr(text)
 	b.putF32(x)
 	b.putF32(y)
 }
 func (b *Buffer) StrokeText(text string, x, y float32) {
-	b.putU8(OpStrokeText)
+	b.putOp(OpStrokeText)
 	b.putStr(text)
 	b.putF32(x)
 	b.putF32(y)
@@ -286,23 +307,23 @@ func (b *Buffer) StrokeText(text string, x, y float32) {
 // Transforms.
 // ------------------------------------------------------------------------------------------------
 
-func (b *Buffer) Save()    { b.putU8(OpSave) }
-func (b *Buffer) Restore() { b.putU8(OpRestore) }
+func (b *Buffer) Save()    { b.putOp(OpSave) }
+func (b *Buffer) Restore() { b.putOp(OpRestore) }
 func (b *Buffer) Translate(x, y float32) {
-	b.putU8(OpTranslate)
+	b.putOp(OpTranslate)
 	b.putF32(x)
 	b.putF32(y)
 }
 func (b *Buffer) Scale(x, y float32) {
-	b.putU8(OpScale)
+	b.putOp(OpScale)
 	b.putF32(x)
 	b.putF32(y)
 }
-func (b *Buffer) Rotate(a float32) { b.putU8(OpRotate); b.putF32(a) }
+func (b *Buffer) Rotate(a float32) { b.putOp(OpRotate); b.putF32(a) }
 
 // BezierCurveTo appends a cubic Bézier curve to the current path.
 func (b *Buffer) BezierCurveTo(cx1, cy1, cx2, cy2, x, y float32) {
-	b.putU8(OpBezier)
+	b.putOp(OpBezier)
 	b.putF32(cx1)
 	b.putF32(cy1)
 	b.putF32(cx2)
@@ -313,7 +334,7 @@ func (b *Buffer) BezierCurveTo(cx1, cy1, cx2, cy2, x, y float32) {
 
 // SetTransform replaces the current transform matrix: [a c e / b d f / 0 0 1].
 func (b *Buffer) SetTransform(a, bb, c, d, e, f float32) {
-	b.putU8(OpSetTransform)
+	b.putOp(OpSetTransform)
 	b.putF32(a)
 	b.putF32(bb)
 	b.putF32(c)
@@ -321,7 +342,7 @@ func (b *Buffer) SetTransform(a, bb, c, d, e, f float32) {
 	b.putF32(e)
 	b.putF32(f)
 }
-func (b *Buffer) ResetTransform() { b.putU8(OpResetTransform) }
+func (b *Buffer) ResetTransform() { b.putOp(OpResetTransform) }
 
 // ------------------------------------------------------------------------------------------------
 // Gradients. Create with an app-chosen `id` (small integers, reused each frame), add stops, then
@@ -330,7 +351,7 @@ func (b *Buffer) ResetTransform() { b.putU8(OpResetTransform) }
 // ------------------------------------------------------------------------------------------------
 
 func (b *Buffer) LinearGradient(id uint16, x0, y0, x1, y1 float32) {
-	b.putU8(OpLinearGradient)
+	b.putOp(OpLinearGradient)
 	b.putU16(id)
 	b.putF32(x0)
 	b.putF32(y0)
@@ -338,7 +359,7 @@ func (b *Buffer) LinearGradient(id uint16, x0, y0, x1, y1 float32) {
 	b.putF32(y1)
 }
 func (b *Buffer) RadialGradient(id uint16, x0, y0, r0, x1, y1, r1 float32) {
-	b.putU8(OpRadialGradient)
+	b.putOp(OpRadialGradient)
 	b.putU16(id)
 	b.putF32(x0)
 	b.putF32(y0)
@@ -348,17 +369,17 @@ func (b *Buffer) RadialGradient(id uint16, x0, y0, r0, x1, y1, r1 float32) {
 	b.putF32(r1)
 }
 func (b *Buffer) AddColorStop(id uint16, offset float32, color string) {
-	b.putU8(OpAddColorStop)
+	b.putOp(OpAddColorStop)
 	b.putU16(id)
 	b.putF32(offset)
 	b.putStr(color)
 }
 func (b *Buffer) UseGradientFill(id uint16) {
-	b.putU8(OpUseGradientFill)
+	b.putOp(OpUseGradientFill)
 	b.putU16(id)
 }
 func (b *Buffer) UseGradientStroke(id uint16) {
-	b.putU8(OpUseGradientStroke)
+	b.putOp(OpUseGradientStroke)
 	b.putU16(id)
 }
 
@@ -367,11 +388,11 @@ func (b *Buffer) UseGradientStroke(id uint16) {
 // ------------------------------------------------------------------------------------------------
 
 func (b *Buffer) SetShadow(color string, blur float32) {
-	b.putU8(OpSetShadow)
+	b.putOp(OpSetShadow)
 	b.putStr(color)
 	b.putF32(blur)
 }
-func (b *Buffer) ClearShadow() { b.putU8(OpClearShadow) }
+func (b *Buffer) ClearShadow() { b.putOp(OpClearShadow) }
 
 // ------------------------------------------------------------------------------------------------
 // Sprites — bake once into an offscreen canvas, then blit cheaply with DrawSprite.
@@ -388,21 +409,21 @@ func (b *Buffer) ClearShadow() { b.putU8(OpClearShadow) }
 // ------------------------------------------------------------------------------------------------
 
 func (b *Buffer) BakeBegin(id uint16, w, h uint16) {
-	b.putU8(OpBakeBegin)
+	b.putOp(OpBakeBegin)
 	b.putU16(id)
 	b.putU16(w)
 	b.putU16(h)
 }
-func (b *Buffer) BakeEnd() { b.putU8(OpBakeEnd) }
+func (b *Buffer) BakeEnd() { b.putOp(OpBakeEnd) }
 
 func (b *Buffer) DrawSprite(id uint16, dx, dy float32) {
-	b.putU8(OpDrawSprite)
+	b.putOp(OpDrawSprite)
 	b.putU16(id)
 	b.putF32(dx)
 	b.putF32(dy)
 }
 func (b *Buffer) DrawSpriteScaled(id uint16, dx, dy, dw, dh float32) {
-	b.putU8(OpDrawSpriteScaled)
+	b.putOp(OpDrawSpriteScaled)
 	b.putU16(id)
 	b.putF32(dx)
 	b.putF32(dy)
@@ -410,7 +431,7 @@ func (b *Buffer) DrawSpriteScaled(id uint16, dx, dy, dw, dh float32) {
 	b.putF32(dh)
 }
 func (b *Buffer) DrawSpriteSub(id uint16, sx, sy, sw, sh, dx, dy, dw, dh float32) {
-	b.putU8(OpDrawSpriteSub)
+	b.putOp(OpDrawSpriteSub)
 	b.putU16(id)
 	b.putF32(sx)
 	b.putF32(sy)

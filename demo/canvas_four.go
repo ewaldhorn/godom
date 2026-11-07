@@ -199,7 +199,6 @@ func updateCanvasFour() {
 
 	b := canvasFourCmd
 	b.Reset()
-	canvasFourOpCount = 0
 	canvasFourTime += 1.0 / 60.0
 
 	drawCanvasFourSky(b)
@@ -209,6 +208,7 @@ func updateCanvasFour() {
 	drawCanvasFourRipples(b)
 	drawCanvasFourDucks(b)
 
+	canvasFourOpCount = b.OpCount()
 	b.Flush(canvasFourCtx)
 	updateCanvasFourHud()
 }
@@ -220,7 +220,6 @@ func drawCanvasFourSky(b *canvas_cmd.Buffer) {
 	b.AddColorStop(0, 1.0, "#9fd4ff")
 	b.UseGradientFill(0)
 	b.FillRect(0, 0, CanvasFourW, HorizonY)
-	canvasFourOpCount += 5
 
 	sunX, sunY := float32(640), float32(90)
 	b.RadialGradient(1, sunX, sunY, 0, sunX, sunY, 120)
@@ -230,13 +229,11 @@ func drawCanvasFourSky(b *canvas_cmd.Buffer) {
 	b.BeginPath()
 	b.Arc(sunX, sunY, 120, 0, tau)
 	b.Fill()
-	canvasFourOpCount += 6
 
 	b.SetFill("#fff2c4")
 	b.BeginPath()
 	b.Arc(sunX, sunY, 34, 0, tau)
 	b.Fill()
-	canvasFourOpCount += 3
 }
 
 func drawCanvasFourGround(b *canvas_cmd.Buffer) {
@@ -245,7 +242,6 @@ func drawCanvasFourGround(b *canvas_cmd.Buffer) {
 	b.AddColorStop(2, 1.0, "#2f6329")
 	b.UseGradientFill(2)
 	b.FillRect(0, HorizonY, CanvasFourW, CanvasFourH-HorizonY)
-	canvasFourOpCount += 4
 }
 
 func drawCanvasFourPond(b *canvas_cmd.Buffer) {
@@ -256,14 +252,12 @@ func drawCanvasFourPond(b *canvas_cmd.Buffer) {
 	b.BeginPath()
 	b.Ellipse(PondCx, PondCy, PondRx, PondRy, 0, 0, tau)
 	b.Fill()
-	canvasFourOpCount += 5
 
 	b.SetStroke("rgba(255,255,255,0.35)")
 	b.SetLineWidth(2)
 	b.BeginPath()
 	b.Ellipse(PondCx, PondCy, PondRx, PondRy, 0, 0, tau)
 	b.Stroke()
-	canvasFourOpCount += 4
 }
 
 func drawCanvasFourTrees(b *canvas_cmd.Buffer) {
@@ -278,7 +272,6 @@ func drawCanvasFourTrees(b *canvas_cmd.Buffer) {
 			w, h = TreeSmallW, TreeSmallH
 		}
 		b.DrawSprite(id, t.X-w/2, t.Y-h)
-		canvasFourOpCount++
 	}
 }
 
@@ -306,15 +299,16 @@ func drawCanvasFourDucks(b *canvas_cmd.Buffer) {
 		}
 		d.LastCos = cosTheta
 
-		dw := float32(DuckW)
-		if d.Speed < 0 {
-			dw = -DuckW
-		}
-		dx := d.X - DuckW/2
 		dy := d.BaseY + bob - DuckH/2
-
-		b.DrawSpriteScaled(SpriteDuck, dx, dy, dw, DuckH)
-		canvasFourOpCount++
+		if d.Speed < 0 {
+			b.Save()
+			b.Translate(d.X+DuckW/2, dy)
+			b.Scale(-1, 1)
+			b.DrawSprite(SpriteDuck, 0, 0)
+			b.Restore()
+		} else {
+			b.DrawSprite(SpriteDuck, d.X-DuckW/2, dy)
+		}
 	}
 }
 
@@ -338,7 +332,6 @@ func drawCanvasFourRipples(b *canvas_cmd.Buffer) {
 		b.BeginPath()
 		b.Ellipse(r.X, r.Y, radius, radius*0.35, 0, 0, tau)
 		b.Stroke()
-		canvasFourOpCount += 4
 	}
 }
 
