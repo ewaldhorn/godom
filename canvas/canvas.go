@@ -402,9 +402,18 @@ func (c *Canvas) ColourBorderCircle(midX, midY, radius, borderWidth int32, col c
 // FilledRectangle draws a filled rectangle starting at (xStart, yStart) with the specified width
 // and height using the active color.
 func (c *Canvas) FilledRectangle(xStart, yStart, width, height int32) {
-	for y := int32(0); y < height; y++ {
-		for x := int32(0); x < width; x++ {
-			c.PutPixel(xStart+x, yStart+y)
+	if width <= 0 || height <= 0 {
+		return
+	}
+
+	x0 := max(xStart, 0)
+	y0 := max(yStart, 0)
+	x1 := min(xStart+width, int32(c.width))
+	y1 := min(yStart+height, int32(c.height))
+
+	for y := y0; y < y1; y++ {
+		for x := x0; x < x1; x++ {
+			c.PutPixel(x, y)
 		}
 	}
 }
@@ -435,10 +444,11 @@ func (c *Canvas) rectangleOutline(xStart, yStart, width, height int32) {
 // Rectangle draws an outline rectangle starting at (xStart, yStart) with the specified width,
 // height, and border thickness using the active color.
 func (c *Canvas) Rectangle(xStart, yStart, width, height, thickness int32) {
-	for t := int32(0); t < thickness; t++ {
+	for t := range thickness {
 		if width-t*2 <= 0 || height-t*2 <= 0 {
 			break
 		}
+
 		c.rectangleOutline(xStart+t, yStart+t, width-t*2, height-t*2)
 	}
 }

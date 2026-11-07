@@ -34,7 +34,7 @@ const (
 // ------------------------------------------------------------------------------------------------
 
 var (
-	isReady              bool = false
+	isReady              bool
 	booCounter           uint32
 	applicationContainer dom.Handle = dom.Invalid
 	articleElement       dom.Handle = dom.Invalid
@@ -150,7 +150,7 @@ var ballTrails [MaxBalls][TrailLen][2]float32
 var trailHead [MaxBalls]int
 
 // Gravity: 0=down, 1=left, 2=up, 3=right, 4=zero-g
-var gravityMode int = 0
+var gravityMode int
 
 var gravityModeNames = [5]string{"DOWN", "LEFT", "UP", "RIGHT", "ZERO-G"}
 
@@ -182,10 +182,10 @@ var drumPattern = [DrumTracks][DrumSteps]bool{
 }
 
 var (
-	drumCurrentStep uint32  = 0
-	drumPlaying     bool    = false
-	drumBpm         uint32  = 120
-	drumLastStepMs  float64 = 0
+	drumCurrentStep uint32
+	drumPlaying     bool
+	drumBpm         uint32 = 120
+	drumLastStepMs  float64
 )
 
 var drumLabels = []string{"K", "SN", "HH", "OH", "CL", "RM"}
@@ -308,10 +308,7 @@ func onCanvasInteraction() {
 			continue
 		}
 		dist := float32(math.Sqrt(float64(distSq)))
-		impulse := 180.0 / dist
-		if impulse > 12.0 {
-			impulse = 12.0
-		}
+		impulse := min(180.0/dist, 12.0)
 		balls[i].Vx += (dx / dist) * impulse
 		balls[i].Vy += (dy / dist) * impulse
 	}
@@ -405,7 +402,7 @@ func updateDrumSequencer() {
 
 func playCurrentDrumStep() {
 	step := int(drumCurrentStep)
-	for track := 0; track < DrumTracks; track++ {
+	for track := range DrumTracks {
 		if drumPattern[track][step] {
 			js.Global().Call("drumHit", track)
 		}
@@ -500,81 +497,74 @@ func setTitle() {
 // ------------------------------------------------------------------------------------------------
 
 type Theme struct {
-	bg             colour.Colour
-	panel          colour.Colour
-	cyan           colour.Colour
-	magenta        colour.Colour
-	yellow         colour.Colour
-	violet         colour.Colour
-	sun_start      colour.Colour
-	sun_end        colour.Colour
-	glow_start_str string
-	glow_mid_str   string
-	glow_end_str   string
+	bg           colour.Colour
+	panel        colour.Colour
+	cyan         colour.Colour
+	magenta      colour.Colour
+	yellow       colour.Colour
+	violet       colour.Colour
+	sunStart     colour.Colour
+	sunEnd       colour.Colour
+	glowStartStr string
+	glowMidStr   string
+	glowEndStr   string
 }
 
-var currentThemeIdx = 0
+var currentThemeIdx int
 
 var themes = []Theme{
 	{
-		bg:             colour.Colour{R: 5, G: 5, B: 16, A: 255},
-		panel:          colour.Colour{R: 12, G: 12, B: 36, A: 255},
-		cyan:           colour.Colour{R: 0, G: 240, B: 220, A: 255},
-		magenta:        colour.Colour{R: 255, G: 0, B: 180, A: 255},
-		yellow:         colour.Colour{R: 255, G: 230, B: 0, A: 255},
-		violet:         colour.Colour{R: 160, G: 0, B: 255, A: 255},
-		sun_start:      colour.Colour{R: 255, G: 230, B: 0, A: 255},
-		sun_end:        colour.Colour{R: 255, G: 0, B: 180, A: 255},
-		glow_start_str: "rgba(255,0,180,0.12)",
-		glow_mid_str:   "rgba(255,180,30,0.22)",
-		glow_end_str:   "rgba(255,230,0,0.32)",
+		bg:           colour.Colour{R: 5, G: 5, B: 16, A: 255},
+		panel:        colour.Colour{R: 12, G: 12, B: 36, A: 255},
+		cyan:         colour.Colour{R: 0, G: 240, B: 220, A: 255},
+		magenta:      colour.Colour{R: 255, G: 0, B: 180, A: 255},
+		yellow:       colour.Colour{R: 255, G: 230, B: 0, A: 255},
+		violet:       colour.Colour{R: 160, G: 0, B: 255, A: 255},
+		sunStart:     colour.Colour{R: 255, G: 230, B: 0, A: 255},
+		sunEnd:       colour.Colour{R: 255, G: 0, B: 180, A: 255},
+		glowStartStr: "rgba(255,0,180,0.12)",
+		glowMidStr:   "rgba(255,180,30,0.22)",
+		glowEndStr:   "rgba(255,230,0,0.32)",
 	},
 	{
-		bg:             colour.Colour{R: 12, G: 4, B: 4, A: 255},
-		panel:          colour.Colour{R: 24, G: 8, B: 8, A: 255},
-		cyan:           colour.Colour{R: 255, G: 120, B: 0, A: 255},
-		magenta:        colour.Colour{R: 255, G: 40, B: 0, A: 255},
-		yellow:         colour.Colour{R: 255, G: 200, B: 0, A: 255},
-		violet:         colour.Colour{R: 100, G: 0, B: 0, A: 255},
-		sun_start:      colour.Colour{R: 255, G: 200, B: 0, A: 255},
-		sun_end:        colour.Colour{R: 255, G: 40, B: 0, A: 255},
-		glow_start_str: "rgba(255,40,0,0.12)",
-		glow_mid_str:   "rgba(255,120,0,0.22)",
-		glow_end_str:   "rgba(255,200,0,0.32)",
+		bg:           colour.Colour{R: 12, G: 4, B: 4, A: 255},
+		panel:        colour.Colour{R: 24, G: 8, B: 8, A: 255},
+		cyan:         colour.Colour{R: 255, G: 120, B: 0, A: 255},
+		magenta:      colour.Colour{R: 255, G: 40, B: 0, A: 255},
+		yellow:       colour.Colour{R: 255, G: 200, B: 0, A: 255},
+		violet:       colour.Colour{R: 100, G: 0, B: 0, A: 255},
+		sunStart:     colour.Colour{R: 255, G: 200, B: 0, A: 255},
+		sunEnd:       colour.Colour{R: 255, G: 40, B: 0, A: 255},
+		glowStartStr: "rgba(255,40,0,0.12)",
+		glowMidStr:   "rgba(255,120,0,0.22)",
+		glowEndStr:   "rgba(255,200,0,0.32)",
 	},
 	{
-		bg:             colour.Colour{R: 20, G: 10, B: 30, A: 255},
-		panel:          colour.Colour{R: 40, G: 20, B: 60, A: 255},
-		cyan:           colour.Colour{R: 0, G: 255, B: 255, A: 255},
-		magenta:        colour.Colour{R: 255, G: 105, B: 180, A: 255},
-		yellow:         colour.Colour{R: 255, G: 255, B: 150, A: 255},
-		violet:         colour.Colour{R: 138, G: 43, B: 226, A: 255},
-		sun_start:      colour.Colour{R: 0, G: 255, B: 255, A: 255},
-		sun_end:        colour.Colour{R: 255, G: 105, B: 180, A: 255},
-		glow_start_str: "rgba(255,105,180,0.12)",
-		glow_mid_str:   "rgba(138,43,226,0.22)",
-		glow_end_str:   "rgba(0,255,255,0.32)",
+		bg:           colour.Colour{R: 20, G: 10, B: 30, A: 255},
+		panel:        colour.Colour{R: 40, G: 20, B: 60, A: 255},
+		cyan:         colour.Colour{R: 0, G: 255, B: 255, A: 255},
+		magenta:      colour.Colour{R: 255, G: 105, B: 180, A: 255},
+		yellow:       colour.Colour{R: 255, G: 255, B: 150, A: 255},
+		violet:       colour.Colour{R: 138, G: 43, B: 226, A: 255},
+		sunStart:     colour.Colour{R: 0, G: 255, B: 255, A: 255},
+		sunEnd:       colour.Colour{R: 255, G: 105, B: 180, A: 255},
+		glowStartStr: "rgba(255,105,180,0.12)",
+		glowMidStr:   "rgba(138,43,226,0.22)",
+		glowEndStr:   "rgba(0,255,255,0.32)",
 	},
 	{
-		bg:             colour.Colour{R: 2, G: 8, B: 4, A: 255},
-		panel:          colour.Colour{R: 4, G: 16, B: 8, A: 255},
-		cyan:           colour.Colour{R: 0, G: 255, B: 100, A: 255},
-		magenta:        colour.Colour{R: 0, G: 180, B: 50, A: 255},
-		yellow:         colour.Colour{R: 200, G: 255, B: 200, A: 255},
-		violet:         colour.Colour{R: 0, G: 80, B: 20, A: 255},
-		sun_start:      colour.Colour{R: 200, G: 255, B: 200, A: 255},
-		sun_end:        colour.Colour{R: 0, G: 180, B: 50, A: 255},
-		glow_start_str: "rgba(0,180,50,0.12)",
-		glow_mid_str:   "rgba(0,80,20,0.22)",
-		glow_end_str:   "rgba(0,255,100,0.32)",
+		bg:           colour.Colour{R: 2, G: 8, B: 4, A: 255},
+		panel:        colour.Colour{R: 4, G: 16, B: 8, A: 255},
+		cyan:         colour.Colour{R: 0, G: 255, B: 100, A: 255},
+		magenta:      colour.Colour{R: 0, G: 180, B: 50, A: 255},
+		yellow:       colour.Colour{R: 200, G: 255, B: 200, A: 255},
+		violet:       colour.Colour{R: 0, G: 80, B: 20, A: 255},
+		sunStart:     colour.Colour{R: 200, G: 255, B: 200, A: 255},
+		sunEnd:       colour.Colour{R: 0, G: 180, B: 50, A: 255},
+		glowStartStr: "rgba(0,180,50,0.12)",
+		glowMidStr:   "rgba(0,80,20,0.22)",
+		glowEndStr:   "rgba(0,255,100,0.32)",
 	},
-}
-
-func maxF32(a, b float32) float32 {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func initCOneAI(w int32) {
@@ -641,7 +631,7 @@ func updateCOneShipAI(w, h, horizon int32) {
 		finalX := cx + o.OriginX
 		dist := absF32(finalX - cOneShipX)
 		dangerZone := float32(100)
-		threat := o.Progress * maxF32(0, 1.0-dist/dangerZone)
+		threat := o.Progress * max(0, 1.0-dist/dangerZone)
 		if threat > bestThreat {
 			bestThreat = threat
 			threatOrigX = o.OriginX
@@ -666,23 +656,12 @@ func updateCOneShipAI(w, h, horizon int32) {
 
 	margin := float32(110)
 	wF := float32(w)
-	if cOneShipTargetX < margin {
-		cOneShipTargetX = margin
-	}
-	if cOneShipTargetX > wF-margin {
-		cOneShipTargetX = wF - margin
-	}
+	cOneShipTargetX = min(max(cOneShipTargetX, margin), wF-margin)
 
 	diff := cOneShipTargetX - cOneShipX
 	cOneShipX += diff * 0.018
 
-	cOneShipBank = diff * 0.003
-	if cOneShipBank > 1.0 {
-		cOneShipBank = 1.0
-	}
-	if cOneShipBank < -1.0 {
-		cOneShipBank = -1.0
-	}
+	cOneShipBank = min(max(diff*0.003, -1.0), 1.0)
 }
 
 func drawCOneObstacle(o *COneObstacle, cx, horizon, h int32, t Theme) {
@@ -787,7 +766,7 @@ func performDemoOnCanvasOne() {
 
 func drawStarfield(w, horizon int32, time uint32, t Theme) {
 	colour.Seed(999)
-	for i := 0; i < 90; i++ {
+	for range 90 {
 		rx := int32(colour.RandomColour().R)*3 + int32(colour.RandomColour().G)%50
 		ry := int32(colour.RandomColour().B) % (horizon - 30)
 		if rx < 12 || rx >= w-12 || ry < 12 {
@@ -834,9 +813,9 @@ func drawRetroSun(cx, cy, r int32, t Theme) {
 		}
 
 		ratio := float32(dy+r) / float32(2*r)
-		red := uint8(float32(t.sun_start.R)*(1.0-ratio) + float32(t.sun_end.R)*ratio)
-		green := uint8(float32(t.sun_start.G)*(1.0-ratio) + float32(t.sun_end.G)*ratio)
-		blue := uint8(float32(t.sun_start.B)*(1.0-ratio) + float32(t.sun_end.B)*ratio)
+		red := uint8(float32(t.sunStart.R)*(1.0-ratio) + float32(t.sunEnd.R)*ratio)
+		green := uint8(float32(t.sunStart.G)*(1.0-ratio) + float32(t.sunEnd.G)*ratio)
+		blue := uint8(float32(t.sunStart.B)*(1.0-ratio) + float32(t.sunEnd.B)*ratio)
 		c := colour.Colour{R: red, G: green, B: blue, A: 255}
 
 		canvasOne.ColourLine(cx-chord, y, cx+chord, y, c)
@@ -869,7 +848,7 @@ func drawMountainSilhouettes(w, horizon int32, t Theme) {
 		{w - 8, horizon},
 	}
 
-	for idx := 0; idx < len(bgPts)-1; idx++ {
+	for idx := range len(bgPts) - 1 {
 		p1 := bgPts[idx]
 		p2 := bgPts[idx+1]
 		for x := p1[0]; x <= p2[0]; x++ {
@@ -879,11 +858,11 @@ func drawMountainSilhouettes(w, horizon int32, t Theme) {
 		}
 	}
 
-	for idx := 0; idx < len(bgPts)-1; idx++ {
+	for idx := range len(bgPts) - 1 {
 		canvasOne.ColourLine(bgPts[idx][0], bgPts[idx][1], bgPts[idx+1][0], bgPts[idx+1][1], t.violet)
 	}
 
-	for idx := 0; idx < len(fgPts)-1; idx++ {
+	for idx := range len(fgPts) - 1 {
 		p1 := fgPts[idx]
 		p2 := fgPts[idx+1]
 		for x := p1[0]; x <= p2[0]; x++ {
@@ -893,7 +872,7 @@ func drawMountainSilhouettes(w, horizon int32, t Theme) {
 		}
 	}
 
-	for idx := 0; idx < len(fgPts)-1; idx++ {
+	for idx := range len(fgPts) - 1 {
 		canvasOne.ColourLine(fgPts[idx][0], fgPts[idx][1], fgPts[idx+1][0], fgPts[idx+1][1], t.cyan)
 	}
 }
@@ -908,7 +887,7 @@ func drawLaserGrid(w, h, horizon int32, scrollOffset float64, t Theme) {
 
 	for x := int32(-120); x <= w+120; x += 35 {
 		ex := float64(x)
-		for s := 0; s < segments; s++ {
+		for s := range segments {
 			t0 := float64(s) / float64(segments)
 			t1 := float64(s+1) / float64(segments)
 
@@ -926,7 +905,7 @@ func drawLaserGrid(w, h, horizon int32, scrollOffset float64, t Theme) {
 		}
 	}
 
-	var i float64 = 0.0
+	var i float64
 	for {
 		exponent := i + scrollOffset
 		dist := 6.0 * math.Pow(1.25, exponent)
@@ -1001,17 +980,17 @@ func drawSunGlow(ctx dom.Context2D, w, cy int32, time uint32, t Theme) {
 	pulse := 3.0 * math.Sin(timeF*0.05)
 
 	ctx.BeginPath()
-	ctx.FillStyle(t.glow_start_str)
+	ctx.FillStyle(t.glowStartStr)
 	ctx.Arc(cxF, cyF, 130.0+pulse, 0.0, 6.2832, false)
 	ctx.Fill()
 
 	ctx.BeginPath()
-	ctx.FillStyle(t.glow_mid_str)
+	ctx.FillStyle(t.glowMidStr)
 	ctx.Arc(cxF, cyF, 95.0-pulse, 0.0, 6.2832, false)
 	ctx.Fill()
 
 	ctx.BeginPath()
-	ctx.FillStyle(t.glow_end_str)
+	ctx.FillStyle(t.glowEndStr)
 	ctx.Arc(cxF, cyF, 50.0+pulse, 0.0, 6.2832, false)
 	ctx.Fill()
 }
@@ -1058,7 +1037,7 @@ func initBalls() {
 		{R: 80, G: 255, B: 0, A: 255},    // lime
 	}
 
-	for i := 0; i < MaxBalls; i++ {
+	for i := range MaxBalls {
 		d := initData[i]
 		balls[i] = Ball{
 			X:      w * float32(d[0]) / 100.0,
@@ -1068,7 +1047,7 @@ func initBalls() {
 			Radius: float32(d[4]),
 			Col:    ballColours[i],
 		}
-		for t := 0; t < TrailLen; t++ {
+		for t := range TrailLen {
 			ballTrails[i][t][0] = balls[i].X
 			ballTrails[i][t][1] = balls[i].Y
 		}
@@ -1136,7 +1115,7 @@ func updateCanvasTwo() {
 	}
 
 	// Ball-to-ball collision
-	for i := 0; i < MaxBalls; i++ {
+	for i := range MaxBalls {
 		for j := i + 1; j < MaxBalls; j++ {
 			ba := &balls[i]
 			bb := &balls[j]
@@ -1183,10 +1162,7 @@ func updateCanvasTwo() {
 				B: uint8(float32(ball.Col.B) * alpha * 0.35),
 				A: 255,
 			}
-			trailR := int32(float32(ball.Radius) * alpha * 0.75)
-			if trailR < 2 {
-				trailR = 2
-			}
+			trailR := max(int32(float32(ball.Radius)*alpha*0.75), 2)
 			canvasTwo.ColourFilledCircle(tx, ty, trailR, tr)
 		}
 	}
@@ -1199,15 +1175,12 @@ func updateCanvasTwo() {
 		br := int32(ball.Radius)
 
 		speed := float32(math.Sqrt(float64(ball.Vx*ball.Vx + ball.Vy*ball.Vy)))
-		glowExtra := int32(speed * 0.4)
-		if glowExtra > 10 {
-			glowExtra = 10
-		}
+		glowExtra := min(int32(speed*0.4), 10)
 
 		glow := colour.Colour{
-			R: maxUint8(ball.Col.R/3, 20),
-			G: maxUint8(ball.Col.G/3, 20),
-			B: maxUint8(ball.Col.B/3, 20),
+			R: max(ball.Col.R/3, 20),
+			G: max(ball.Col.G/3, 20),
+			B: max(ball.Col.B/3, 20),
 			A: 255,
 		}
 		canvasTwo.ColourFilledCircle(bx, by, br+4+glowExtra, glow)
@@ -1247,7 +1220,7 @@ func performDemoOnCanvasThree() {
 		drawTinyText("PAUSE", 400, 26, 2, muted)
 	}
 
-	for step := 0; step < DrumSteps; step++ {
+	for step := range DrumSteps {
 		x := int32(DrumGridX + step*DrumCellPitchX)
 		stepLabelY := int32(DrumGridY - 24)
 		if step%4 == 0 {
@@ -1256,12 +1229,12 @@ func performDemoOnCanvasThree() {
 		drawTinyDigit(uint8((step+1)%10), x+8, stepLabelY, 1, muted)
 	}
 
-	for track := 0; track < DrumTracks; track++ {
+	for track := range DrumTracks {
 		y := int32(DrumGridY + track*DrumCellPitchY)
 		drawTinyText(drumLabels[track], 24, y+8, 2, drumNeon[track])
 		canvasThree.ColourFilledCircle(60, y+12, 4, drumNeon[track])
 
-		for step := 0; step < DrumSteps; step++ {
+		for step := range DrumSteps {
 			x := int32(DrumGridX + step*DrumCellPitchX)
 			var cellColour colour.Colour
 			if drumPattern[track][step] {
@@ -1346,14 +1319,12 @@ func getGlyphRows(ch uint8) [5]string {
 
 func drawTinyText(text string, x, y, scale int32, c colour.Colour) {
 	cursor := x
-	for i := 0; i < len(text); i++ {
+	for i := range len(text) {
 		ch := text[i]
-		if ch == ' ' {
-			cursor += 4 * scale
-		} else {
+		if ch != ' ' {
 			drawTinyGlyph(ch, cursor, y, scale, c)
-			cursor += 4 * scale
 		}
+		cursor += 4 * scale
 	}
 }
 
@@ -1364,7 +1335,7 @@ func drawTinyDigit(digit uint8, x, y, scale int32, c colour.Colour) {
 func drawTinyGlyph(ch uint8, x, y, scale int32, c colour.Colour) {
 	rows := getGlyphRows(ch)
 	for rowIdx, row := range rows {
-		for colIdx := 0; colIdx < len(row); colIdx++ {
+		for colIdx := range len(row) {
 			if row[colIdx] == '1' {
 				canvasThree.ColourFilledRectangle(
 					x+int32(colIdx)*scale,
@@ -1380,21 +1351,19 @@ func drawTinyGlyph(ch uint8, x, y, scale int32, c colour.Colour) {
 
 func drawOneText(text string, x, y, scale int32, c colour.Colour) {
 	cursor := x
-	for i := 0; i < len(text); i++ {
+	for i := range len(text) {
 		ch := text[i]
-		if ch == ' ' {
-			cursor += 4 * scale
-		} else {
+		if ch != ' ' {
 			drawOneGlyph(ch, cursor, y, scale, c)
-			cursor += 4 * scale
 		}
+		cursor += 4 * scale
 	}
 }
 
 func drawOneGlyph(ch uint8, x, y, scale int32, c colour.Colour) {
 	rows := getGlyphRows(ch)
 	for rowIdx, row := range rows {
-		for colIdx := 0; colIdx < len(row); colIdx++ {
+		for colIdx := range len(row) {
 			if row[colIdx] == '1' {
 				canvasOne.ColourFilledRectangle(
 					x+int32(colIdx)*scale,
@@ -1599,11 +1568,4 @@ func absF32(v float32) float32 {
 		return -v
 	}
 	return v
-}
-
-func maxUint8(a, b uint8) uint8 {
-	if a > b {
-		return a
-	}
-	return b
 }

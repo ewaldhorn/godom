@@ -21,7 +21,7 @@ const (
 
 var (
 	blue    = colour.Colour{R: 30, G: 100, B: 255, A: 255}
-	isWhite = false
+	isWhite bool
 )
 
 func redraw(c *canvas.Canvas) {

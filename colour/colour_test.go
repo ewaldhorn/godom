@@ -50,10 +50,10 @@ func TestSeedAndRandomColour(t *testing.T) {
 
 	// Reset seed and verify identical sequence (reproducibility)
 	Seed(42)
-	c1_second := RandomColour()
-	c2_second := RandomColour()
+	c1Second := RandomColour()
+	c2Second := RandomColour()
 
-	if c1 != c1_second || c2 != c2_second {
+	if c1 != c1Second || c2 != c2Second {
 		t.Error("expected identical random colors after re-seeding with the same value")
 	}
 
@@ -69,9 +69,9 @@ func TestSeedAndRandomColour(t *testing.T) {
 	Seed(42)
 	_ = RandomColour()
 	_ = RandomColour()
-	c3_expected := RandomColour()
+	c3Expected := RandomColour()
 
-	if c3 != c3_expected {
+	if c3 != c3Expected {
 		t.Error("expected seed of 0 to be ignored, but rngState sequence changed")
 	}
 }

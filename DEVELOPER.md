@@ -148,7 +148,7 @@ Obtain a `Context2D` from a `canvas.Canvas` instance via `canvas.GetContext2D()`
 
 The [`html`](html/html.go) package implements a fluent tag builder around the `Element` struct. It provides chainable tag constructors for most common HTML elements (e.g., `Div()`, `Span()`, `Button()`, `Table()`). For a tag without a named constructor, use `html.Init(tag)` directly.
 
-Chainable methods on `*Element`:
+Chainable methods on `Element`:
 
 | Method | Description |
 |---|---|
@@ -322,8 +322,7 @@ Add a `_test.go` file to the `benchmarks/` package following the standard Go ben
 ```go
 func BenchmarkMyOperation(b *testing.B) {
     // setup ...
-    b.ResetTimer()
-    for i := 0; i < b.N; i++ {
+    for b.Loop() {
         // operation under test
     }
 }

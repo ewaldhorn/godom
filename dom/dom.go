@@ -214,11 +214,7 @@ func GetString(elemID, key string) string {
 	if !elem.IsValid() {
 		return ""
 	}
-	v := js.Value(elem).Get(key)
-	if v.IsUndefined() || v.IsNull() {
-		return ""
-	}
-	return v.String()
+	return elem.Get(key)
 }
 
 // ------------------------------------------------------------------------------------------------

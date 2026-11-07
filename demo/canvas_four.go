@@ -139,7 +139,7 @@ func bakeTreeSprite(b *canvas_cmd.Buffer, id, w, h uint16, tint float32) {
 
 	canopyColours := [3]string{"#1f5c2e", "#2c7a3d", "#3f9650"}
 	cy := fh - trunkH
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		r := fw * (0.30 - float32(i)*0.03) * tint
 		ox := fw/2 + float32(i-1)*fw*0.14
 		oy := cy - float32(i)*fh*0.12 - r*0.5

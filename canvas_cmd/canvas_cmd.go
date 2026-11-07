@@ -177,10 +177,7 @@ func (b *Buffer) putF32(v float32) {
 }
 
 func (b *Buffer) putStr(s string) {
-	n := len(s)
-	if n > 0xFFFF {
-		n = 0xFFFF
-	}
+	n := min(len(s), 0xFFFF)
 	if b.overflowed || len(b.data)+2+n > Capacity {
 		b.overflowed = true
 		return

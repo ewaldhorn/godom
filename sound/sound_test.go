@@ -17,13 +17,8 @@ func TestFillClick(t *testing.T) {
 		if math.IsNaN(float64(val)) {
 			t.Fatalf("found NaN in buffer at index %d", idx)
 		}
-		absVal := val
-		if val < 0 {
-			absVal = -val
-		}
-		if absVal > maxVal {
-			maxVal = absVal
-		}
+		absVal := max(val, -val)
+		maxVal = max(maxVal, absVal)
 		if absVal > 0 {
 			hasNonZero = true
 		}
@@ -40,26 +35,14 @@ func TestFillClick(t *testing.T) {
 	}
 
 	// Verify exponential decay by comparing early peak amplitude to final amplitude
-	firstHalfMax := float32(0.0)
-	for i := 0; i < len(buf)/2; i++ {
-		absVal := buf[i]
-		if absVal < 0 {
-			absVal = -absVal
-		}
-		if absVal > firstHalfMax {
-			firstHalfMax = absVal
-		}
+	var firstHalfMax float32
+	for _, val := range buf[:len(buf)/2] {
+		firstHalfMax = max(firstHalfMax, max(val, -val))
 	}
 
-	lastQuarterMax := float32(0.0)
-	for i := len(buf) - len(buf)/4; i < len(buf); i++ {
-		absVal := buf[i]
-		if absVal < 0 {
-			absVal = -absVal
-		}
-		if absVal > lastQuarterMax {
-			lastQuarterMax = absVal
-		}
+	var lastQuarterMax float32
+	for _, val := range buf[len(buf)-len(buf)/4:] {
+		lastQuarterMax = max(lastQuarterMax, max(val, -val))
 	}
 
 	if lastQuarterMax >= firstHalfMax {

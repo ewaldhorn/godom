@@ -20,7 +20,7 @@ var (
 // ------------------------------------------------------------------------------------------------
 // IsEmpty returns true if the colour is fully transparent (all RGBA components are zero).
 func (c Colour) IsEmpty() bool {
-	return c.R == 0 && c.G == 0 && c.B == 0 && c.A == 0
+	return c == Empty
 }
 
 // ------------------------------------------------------------------------------------------------
