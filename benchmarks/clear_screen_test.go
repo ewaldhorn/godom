@@ -15,8 +15,7 @@ var testColour = colour.Colour{R: 100, G: 150, B: 200, A: 255}
 // BenchmarkClearScreenNaive benchmarks clearing the canvas using the naive byte-by-byte loop.
 func BenchmarkClearScreenNaive(b *testing.B) {
 	pixels := make([]byte, 1920*1080*4)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j := 0; j < len(pixels); j += 4 {
 			pixels[j] = testColour.R
 			pixels[j+1] = testColour.G
@@ -32,8 +31,7 @@ func BenchmarkClearScreenNaive(b *testing.B) {
 func BenchmarkClearScreenOptimized(b *testing.B) {
 	pixels := make([]byte, 1920*1080*4)
 	c := canvas.NewOffscreenCanvas(1920, 1080, pixels)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		c.ClearScreen(testColour)
 	}
 }
