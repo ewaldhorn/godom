@@ -209,6 +209,10 @@ With that done, we now have access to the functions in the `wasm_exec` script in
 
 And with that, we should be able to simply run our `run.sh` script and go to our browser. You might need to refresh if your browser has cached the previous session, but you should be greeted from Web Assembly! If you are not, check your browser console, if something goes wrong, our code should log the error.
 
+If it all goes well, you should see something like:
+
+![Step 1 Screenshot](step_1.png)
+
 ## And that's the name of that song
 
 You've done it! You have Go interacting with the DOM. That's a huge first step, but it's something we can build on for sure. Go to the next step when you are ready:  [Step 2](../step_2/)
