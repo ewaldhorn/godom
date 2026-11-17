@@ -339,33 +339,3 @@ func StartAnimationLoop(cb js.Value) (stop func()) {
 	js.Global().Call("requestAnimationFrame", tick)
 	return func() { stopped.Store(true) }
 }
-
-// ------------------------------------------------------------------------------------------------
-// Context2D wraps the canvas 2D rendering context.
-type Context2D struct {
-	Ctx Handle
-}
-
-// ------------------------------------------------------------------------------------------------
-// BeginPath begins a new path in the rendering context.
-func (c Context2D) BeginPath() {
-	js.Value(c.Ctx).Call("beginPath")
-}
-
-// ------------------------------------------------------------------------------------------------
-// Fill fills the current path with the current fill style.
-func (c Context2D) Fill() {
-	js.Value(c.Ctx).Call("fill")
-}
-
-// ------------------------------------------------------------------------------------------------
-// Arc draws a circular arc on the rendering context.
-func (c Context2D) Arc(x, y, radius, startAngle, endAngle float64, ccw bool) {
-	js.Value(c.Ctx).Call("arc", x, y, radius, startAngle, endAngle, ccw)
-}
-
-// ------------------------------------------------------------------------------------------------
-// FillStyle sets the fill style/color of the rendering context.
-func (c Context2D) FillStyle(style string) {
-	js.Value(c.Ctx).Set("fillStyle", style)
-}
