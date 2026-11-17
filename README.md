@@ -284,6 +284,12 @@ Then open `http://localhost:9001`.
 
 ---
 
+## Tutorials
+
+I also have some basic tutorials I'm working on in the [`conversions/`][conversions] directory that you might want to check out at some point. These are a WIP so check back now and then.
+
+---
+
 ## Benchmarking
 
 The `benchmarks/` directory contains the code used to validate key performance decisions in this library — for example, the exponential copy strategy behind `ClearScreen()` which is ~22× faster than a naive pixel loop at 1920×1080.
