@@ -13,6 +13,8 @@ The idea is to take the original JavaScript and place as much of it in Go as pos
 
 I'll be doing it in steps, with each step building on the previous, except for Step 1 of course... You'll need a recent-ish version of Go, I'm rocking 1.27 in November 2026. Other than that, some internet access to download the GoDom package will be most handy, unless you've cloned the repo then you can use relative paths as well, your call.
 
+In order to test our project, we will need some kind of a simple HTTP server. I like [http-server](https://www.npmjs.com/package/http-server) because it's fast to install and simple to use. Pick whatever works for you though.
+
 ## Where are the steps
 
 Errr, there are directories for them, I hope?!
