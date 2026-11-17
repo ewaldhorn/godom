@@ -193,3 +193,22 @@ The head section should now look like this:
     <script src="wasm_exec.js"></script>
   </head>
 ```
+
+With that done, we now have access to the functions in the `wasm_exec` script inside our index page. We can now finally load our wasm binary. We'll start by adding a script tag in the bottom of our index page, just before the closing `body` tag:
+
+```html
+<script>
+  const go = new Go();
+  WebAssembly.instantiateStreaming(fetch("app.wasm"), go.importObject).then((result) => {
+    go.run(result.instance);
+  }).catch(err => {
+    console.error("Failed to load WASM:", err);
+  });
+</script>      
+```
+
+And with that, we should be able to simply run our `run.sh` script and go to our browser. You might need to refresh if your browser has cached the previous session, but you should be greeted from Web Assembly! If you are not, check your browser console, if something goes wrong, our code should log the error.
+
+## And that's the name of that song
+
+You've done it! You have Go interacting with the DOM. That's a huge first step, but it's something we can build on for sure. Go to the next step when you are ready.

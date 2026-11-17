@@ -7,5 +7,13 @@
   </head>
   <body>
       <h1>Just Checking</h1>
+      <script>
+        const go = new Go();
+        WebAssembly.instantiateStreaming(fetch("app.wasm"), go.importObject).then((result) => {
+          go.run(result.instance);
+        }).catch(err => {
+          console.error("Failed to load WASM:", err);
+        });
+      </script>
   </body>
 </html>
