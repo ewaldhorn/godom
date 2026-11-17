@@ -165,3 +165,17 @@ Hit CTRL-C to stop the server
 ```
 
 And you should be able to open `localhost:9000` in your browser and see our index file! Of course, you use whatever local HTTP server works for you, but you will need a server of some kind, wasm can't be loaded by just opening the `index.html` directly from disk.
+
+## Still not really seeing the point
+
+That's been a lot of work for, well, nothing! I mean, I could get the same result in a minute using NotePad so why bother? Ok, I hear you. Let's bring the wasm binary we built into play next.
+
+To do that, we need to bring a little bit of JavaScript magic into the mix. Go provides us with `wasm_exec.js`, a special script that helps bootstrap the Go JavaScript environment needed to load Go wasm-driven binaries. We can update our `run.sh` script to ensure this file is in the `dist` directory. Add this line after the line that copies your `index.html` file to the `dist` directory:
+
+```bash
+cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" ./dist/
+```
+
+Refer to [`run.sh`](run.sh) if you get stuck.
+
+Good, now we have all the basics in place and we can actually load and run our wasm binary.

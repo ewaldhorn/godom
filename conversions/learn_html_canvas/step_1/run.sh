@@ -10,5 +10,8 @@ set -euo pipefail
 # so now copy index.html to dist
 cp ./html/index.html ./dist/
 
+# ok also copy wasm_exec.js for us
+cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" ./dist/
+
 # copy done, let's serve that directory on port 9000
 http-server ./dist/ -p 9000
