@@ -167,3 +167,7 @@ func Summary() Element    { return Init("summary") }
 func Blockquote() Element { return Init("blockquote") }
 func Cite() Element       { return Init("cite") }
 func Time() Element       { return Init("time") }
+
+// ------------------------------------------------------------------------------------------------
+// Canvas
+func Canvas() Element { return Init("canvas") }
