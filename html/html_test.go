@@ -17,6 +17,11 @@ func init() {
 					className: "",
 					innerText: "",
 					innerHTML: "",
+					style: {
+						setProperty: function(prop, val) {
+							this[prop] = val;
+						}
+					},
 					children: [],
 					listeners: {},
 					setAttribute: function(key, val) {
@@ -55,7 +60,9 @@ func TestElementBuilder(t *testing.T) {
 		Class("active").
 		Text("Hello").
 		HTML("<p>Hello</p>").
-		Attr("data-custom", "value")
+		Attr("data-custom", "value").
+		Style("background-color", "blue").
+		Style("border", "1px solid black")
 
 	val := js.Value(el.Handle)
 
@@ -77,6 +84,14 @@ func TestElementBuilder(t *testing.T) {
 
 	if custom := val.Get("data-custom").String(); custom != "value" {
 		t.Errorf("expected data-custom 'value', got '%s'", custom)
+	}
+
+	if bg := val.Get("style").Get("background-color").String(); bg != "blue" {
+		t.Errorf("expected style background-color 'blue', got '%s'", bg)
+	}
+
+	if border := val.Get("style").Get("border").String(); border != "1px solid black" {
+		t.Errorf("expected style border '1px solid black', got '%s'", border)
 	}
 }
 

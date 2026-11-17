@@ -55,6 +55,13 @@ func (e Element) Attr(key, val string) Element {
 }
 
 // ------------------------------------------------------------------------------------------------
+// Style sets an inline CSS property on the element.
+func (e Element) Style(prop, val string) Element {
+	js.Value(e.Handle).Get("style").Call("setProperty", prop, val)
+	return e
+}
+
+// ------------------------------------------------------------------------------------------------
 // Child appends another builder's element as a child.
 func (e Element) Child(childHandle dom.Handle) Element {
 	dom.AddElementTo(e.Handle, childHandle)
