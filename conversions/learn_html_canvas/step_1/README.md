@@ -104,7 +104,7 @@ Then we task Go with building our `app.wasm` binary, using the appropriate flags
 
 Now you should be able to run `./build.sh` in your step 1 directory and it should output the binary to the `dist` directory.
 
-# Yowsers that's a big file
+## Yowsers that's a big file
 
 Yeah, compiling Go to wasm can produce some chunky binaries. On my machine, just this basic Go app is 2 032 743 bytes! We can add some flags to our `build.sh` script to try to trim things just a bit. Change the build line to:
 
@@ -114,6 +114,54 @@ GOOS=js GOARCH=wasm go build -trimpath -ldflags="-s -w" -o ./dist/app.wasm ./src
 
 Now run the build again. For my, the file size came down to 1 987 618 bytes. Still huge, but that's the price we pay for the powerful Go runtime. If you are interested in smaller binaries, check out [TinyGo](https://tinygo.org/), it is an interesting project that compiles smaller and tighter Go binaries. I even have a [TinyCanvas](https://github.com/ewaldhorn/tinycanvas) project with demos for using TinyGo to target wasm as well.
 
-# How do we run this
+## How do we run this
 
 Ok, it's compiled, but it is still not useable. After all, a .wasm file does not a website make. We need an `index.html` page and something that will boot the Go WebAssembly environment and run our wasm binary.
+
+First, we need an `index.html` file. To keep things organised, I'm going to create a directory called `html` and place my HTML document(s) there.
+
+For now, let's just get a basic `index.html` in place:
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>GoDom Tutorial Step 1</title>
+  </head>
+  <body>
+      <h1>Just Checking</h1>
+  </body>
+</html>
+```
+
+## Finally running it
+
+Now that we have an index file, we should serve it. I like `http-server`, but you can use whatever you want. I'll create a simple `run.sh` file that copies my index file into the `dist` directory and then serve that directory:
+
+```bash
+```
+
+Remember to make the `run.sh` file executable with the `chmod +x run.sh` command. Now when you invoice `./run.sh`, you should see something like:
+```bash
+Starting up http-server, serving ./dist/
+
+http-server version: 14.1.1
+
+http-server settings: 
+CORS: disabled
+Cache: 3600 seconds
+Connection Timeout: 120 seconds
+Directory Listings: visible
+AutoIndex: visible
+Serve GZIP Files: false
+Serve Brotli Files: false
+Default File Extension: none
+
+Available on:
+  http://127.0.0.1:9000
+  http://xxx.xxx.xx.xxx:9000
+Hit CTRL-C to stop the server
+```
+
+And you should be able to open `localhost:9000` in your browser and see our index file! Of course, you use whatever local HTTP server works for you, but you will need a server of some kind, wasm can't be loaded by just opening the `index.html` directly from disk.
