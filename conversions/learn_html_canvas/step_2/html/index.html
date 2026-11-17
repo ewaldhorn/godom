@@ -6,7 +6,6 @@
     <script src="wasm_exec.js"></script>
   </head>
   <body>
-      <h1>Just Checking</h1>
       <script>
         const go = new Go();
         WebAssembly.instantiateStreaming(fetch("app.wasm"), go.importObject).then((result) => {

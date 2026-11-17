@@ -15,7 +15,6 @@ Let's edit our `index.html` and remove the header and update the title, like thi
     <script src="wasm_exec.js"></script>
   </head>
   <body>
-      <h1>Just Checking</h1>
       <script>
         const go = new Go();
         WebAssembly.instantiateStreaming(fetch("app.wasm"), go.importObject).then((result) => {
