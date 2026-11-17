@@ -211,7 +211,7 @@ And with that, we should be able to simply run our `run.sh` script and go to our
 
 If it all goes well, you should see something like:
 
-![Step 1 Screenshot](step_1.png)
+![Step 1 Screenshot](step1.png)
 
 ## And that's the name of that song
 
