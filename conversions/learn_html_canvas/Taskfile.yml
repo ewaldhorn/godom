@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+vars:
+  ABOUT_SELF: "\nOh howdy there.\nThis is a simple GoDom tutorial, hope you have fun!\n"
+
+tasks:
+  default:
+    desc: Prints the general help
+    cmds:
+      - echo "{{.ABOUT_SELF}}"
+      - task --list-all
+      - echo ""
+    silent: true
