@@ -178,4 +178,18 @@ cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" ./dist/
 
 Refer to [`run.sh`](run.sh) if you get stuck.
 
-Good, now we have all the basics in place and we can actually load and run our wasm binary.
+Good, now we have all the basics in place and we can actually load and run our wasm binary. To do this, we need to make some changes to our `index.html` page. Add a reference to the `wasm_exec.js` script to the head section, right under the title:
+
+```html
+<script src="wasm_exec.js"></script>
+```
+
+The head section should now look like this:
+
+```html
+  <head>
+    <meta charset="utf-8" />
+    <title>GoDom Tutorial Step 1</title>
+    <script src="wasm_exec.js"></script>
+  </head>
+```
