@@ -17,7 +17,7 @@ In order to test our project, we will need some kind of a simple HTTP server. I 
 
 ## Where are the steps
 
-Errr, there are directories for them, I hope?! Try to get to [`step 1/`](./step_1).
+Errr, there are directories for them, I hope?! Try to get to [Step 1](./step_1).
 
 ## What's in the directories?
 
