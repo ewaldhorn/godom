@@ -9,4 +9,4 @@ This project, **Godom**, was created by [**Ewald Horn**](https://nofuss.co.za/).
 ## More Toys & Web Experiments
 
 For more interactive toys, games, and WebAssembly experiments, visit:
-[No Fuss Toys](https://nofuss.co.za/toys)
+[NoFuss Toys](https://nofuss.co.za/toys)
