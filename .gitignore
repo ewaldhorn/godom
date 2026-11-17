@@ -1,3 +1,4 @@
 examples/click-rect/app.wasm
 examples/click-rect/wasm_exec.js
 conversions/learn_html_canvas/step_1/dist
+conversions/learn_html_canvas/step_2/dist
