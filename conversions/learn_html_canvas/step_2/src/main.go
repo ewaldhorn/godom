@@ -11,12 +11,7 @@ func getContext2DfromCanvasHandle(canvasHandle dom.Handle) dom.Context2D {
 		panic("godom: getContext2DfromCanvasHandle received an invalid canvas handle")
 	}
 
-	ctx := dom.CanvasGetContext(canvasHandle)
-	if !ctx.IsValid() {
-		panic("godom: getContext2DfromCanvasHandle failed to retrieve Canvas2D context")
-	}
-
-	return dom.Context2D{Ctx: ctx}
+	return dom.NewContext2D(canvasHandle)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -41,10 +36,8 @@ func createAndConfigureHTMLCanvas() dom.Context2D {
 // ------------------------------------------------------------------------------------------------
 func drawToTheCanvas(ctx dom.Context2D) {
 	ctx.FillStyle("yellow")
-	// ctx.BeginPath()
 	ctx.Arc(10.0, 10.0, 150.0, 0.0, 180.0, false)
 	ctx.Fill()
-
 }
 
 // ------------------------------------------------------------------------------------------------
