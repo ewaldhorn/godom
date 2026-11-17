@@ -211,4 +211,4 @@ And with that, we should be able to simply run our `run.sh` script and go to our
 
 ## And that's the name of that song
 
-You've done it! You have Go interacting with the DOM. That's a huge first step, but it's something we can build on for sure. Go to the next step when you are ready:  [Step 2](`../step_2/`)
+You've done it! You have Go interacting with the DOM. That's a huge first step, but it's something we can build on for sure. Go to the next step when you are ready:  [Step 2](../step_2/)
