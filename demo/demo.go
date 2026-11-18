@@ -22,7 +22,7 @@ var bodyStyle string
 var dommieText string
 
 const (
-	Version = "0.0.5"
+	Version = "0.0.6"
 	Name    = "Godom Demo"
 )
 
@@ -249,30 +249,11 @@ func initDOMLayout() {
 }
 
 func registerEventListeners() {
-	dom.AddEventListenerByID("addSomethingButton", "click", js.FuncOf(func(this js.Value, args []js.Value) any {
-		onAddSomethingClick()
-		return nil
-	}).Value)
-
-	dom.AddEventListenerByID("clearAsideButton", "click", js.FuncOf(func(this js.Value, args []js.Value) any {
-		onClearAsideClick()
-		return nil
-	}).Value)
-
-	dom.AddEventListenerByID("refreshButton", "click", js.FuncOf(func(this js.Value, args []js.Value) any {
-		onRefreshCanvasOneClick()
-		return nil
-	}).Value)
-
-	dom.AddEventListenerByID("drumPlayButton", "click", js.FuncOf(func(this js.Value, args []js.Value) any {
-		onDrumPlayPause()
-		return nil
-	}).Value)
-
-	dom.AddEventListenerByID("gravityButton", "click", js.FuncOf(func(this js.Value, args []js.Value) any {
-		onCycleGravity()
-		return nil
-	}).Value)
+	dom.OnClickByID("addSomethingButton", onAddSomethingClick)
+	dom.OnClickByID("clearAsideButton", onClearAsideClick)
+	dom.OnClickByID("refreshButton", onRefreshCanvasOneClick)
+	dom.OnClickByID("drumPlayButton", onDrumPlayPause)
+	dom.OnClickByID("gravityButton", onCycleGravity)
 
 	// Expose canvas pointer interaction and audio buffer helpers to JS.
 	js.Global().Set("go_set_interaction", js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -334,11 +315,7 @@ func main() {
 
 	isReady = true
 
-	animationLoopCb := js.FuncOf(func(this js.Value, args []js.Value) any {
-		onAnimationTick()
-		return nil
-	})
-	dom.StartAnimationLoop(animationLoopCb.Value)
+	dom.StartLoop(onAnimationTick)
 
 	// Block forever so the Go WASM runtime and all registered callbacks stay alive.
 	select {}

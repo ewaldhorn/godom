@@ -18,6 +18,7 @@ var Invalid = Handle(js.Null())
 // ------------------------------------------------------------------------------------------------
 // Global element references.
 var (
+	Window   Handle
 	Document Handle
 	Body     Handle
 	Head     Handle
@@ -26,6 +27,7 @@ var (
 // ------------------------------------------------------------------------------------------------
 // Init captures global JS references from the browser.
 func Init() {
+	Window = Handle(js.Global())
 	Document = Handle(js.Global().Get("document"))
 	Body = Handle(js.Value(Document).Get("body"))
 	Head = Handle(js.Value(Document).Get("head"))
@@ -262,13 +264,178 @@ func AddNewStyleElement(css string) {
 // ================================================================================================
 
 // ------------------------------------------------------------------------------------------------
-// AddEventListener registers an event listener on the element.
+// Event wraps a browser DOM Event passed to an event listener callback.
+type Event struct {
+	raw js.Value
+}
+
+// ------------------------------------------------------------------------------------------------
+// Raw returns the underlying js.Value of the DOM event.
+func (e Event) Raw() js.Value {
+	return e.raw
+}
+
+// ------------------------------------------------------------------------------------------------
+// PreventDefault cancels the event if it is cancelable.
+func (e Event) PreventDefault() {
+	if e.raw.Truthy() {
+		e.raw.Call("preventDefault")
+	}
+}
+
+// ------------------------------------------------------------------------------------------------
+// StopPropagation prevents further propagation of the current event in the capturing and bubbling phases.
+func (e Event) StopPropagation() {
+	if e.raw.Truthy() {
+		e.raw.Call("stopPropagation")
+	}
+}
+
+// ------------------------------------------------------------------------------------------------
+// Target returns the DOM element handle on which the event originally occurred.
+func (e Event) Target() Handle {
+	if !e.raw.Truthy() {
+		return Invalid
+	}
+	t := Handle(e.raw.Get("target"))
+	if t.IsValid() {
+		return t
+	}
+	return Invalid
+}
+
+// ------------------------------------------------------------------------------------------------
+// ClientX returns the horizontal coordinate within the application's viewport at which the event occurred.
+func (e Event) ClientX() int {
+	return e.intProp("clientX")
+}
+
+// ------------------------------------------------------------------------------------------------
+// ClientY returns the vertical coordinate within the application's viewport at which the event occurred.
+func (e Event) ClientY() int {
+	return e.intProp("clientY")
+}
+
+// ------------------------------------------------------------------------------------------------
+// OffsetX returns the horizontal coordinate of the pointer relative to the target node.
+func (e Event) OffsetX() int {
+	return e.intProp("offsetX")
+}
+
+// ------------------------------------------------------------------------------------------------
+// OffsetY returns the vertical coordinate of the pointer relative to the target node.
+func (e Event) OffsetY() int {
+	return e.intProp("offsetY")
+}
+
+// ------------------------------------------------------------------------------------------------
+// Button returns which mouse button was pressed to trigger the event (0=main, 1=auxiliary, 2=secondary).
+func (e Event) Button() int {
+	return e.intProp("button")
+}
+
+// ------------------------------------------------------------------------------------------------
+// Key returns the value of the key pressed by the user (for example, "ArrowUp" or "a").
+func (e Event) Key() string {
+	return Handle(e.raw).Get("key")
+}
+
+// ------------------------------------------------------------------------------------------------
+// Code returns the physical key code on the keyboard (for example, "Space" or "KeyA").
+func (e Event) Code() string {
+	return Handle(e.raw).Get("code")
+}
+
+func (e Event) intProp(key string) int {
+	if !e.raw.Truthy() {
+		return 0
+	}
+	v := e.raw.Get(key)
+	if v.IsUndefined() || v.IsNull() {
+		return 0
+	}
+	return v.Int()
+}
+
+// ------------------------------------------------------------------------------------------------
+// On registers a plain Go callback for the given event name on the handle.
+// It returns a cleanup function that removes the event listener and releases the underlying JS closure.
+func (h Handle) On(event string, fn func()) (off func()) {
+	if !h.IsValid() {
+		return func() {}
+	}
+	var released atomic.Bool
+	jsFn := js.FuncOf(func(this js.Value, args []js.Value) any {
+		fn()
+		return nil
+	})
+	js.Value(h).Call("addEventListener", event, jsFn)
+	return func() {
+		if released.CompareAndSwap(false, true) {
+			js.Value(h).Call("removeEventListener", event, jsFn)
+			jsFn.Release()
+		}
+	}
+}
+
+// ------------------------------------------------------------------------------------------------
+// OnEvent registers a Go callback that receives the DOM Event wrapper for the given event name.
+// It returns a cleanup function that removes the event listener and releases the underlying JS closure.
+func (h Handle) OnEvent(event string, fn func(Event)) (off func()) {
+	if !h.IsValid() {
+		return func() {}
+	}
+	var released atomic.Bool
+	jsFn := js.FuncOf(func(this js.Value, args []js.Value) any {
+		var ev Event
+		if len(args) > 0 {
+			ev = Event{raw: args[0]}
+		}
+		fn(ev)
+		return nil
+	})
+	js.Value(h).Call("addEventListener", event, jsFn)
+	return func() {
+		if released.CompareAndSwap(false, true) {
+			js.Value(h).Call("removeEventListener", event, jsFn)
+			jsFn.Release()
+		}
+	}
+}
+
+// ------------------------------------------------------------------------------------------------
+// OnClick registers a plain Go callback for "click" events on the handle.
+// It returns a cleanup function that removes the event listener and releases the underlying JS closure.
+func (h Handle) OnClick(fn func()) (off func()) {
+	return h.On("click", fn)
+}
+
+// ------------------------------------------------------------------------------------------------
+// OnByID registers a plain Go callback for the given event name on the element matching the ID.
+func OnByID(id, event string, fn func()) (off func()) {
+	return GetElementByID(id).On(event, fn)
+}
+
+// ------------------------------------------------------------------------------------------------
+// OnEventByID registers a Go callback receiving an Event on the element matching the ID.
+func OnEventByID(id, event string, fn func(Event)) (off func()) {
+	return GetElementByID(id).OnEvent(event, fn)
+}
+
+// ------------------------------------------------------------------------------------------------
+// OnClickByID registers a plain Go callback for "click" events on the element matching the ID.
+func OnClickByID(id string, fn func()) (off func()) {
+	return GetElementByID(id).OnClick(fn)
+}
+
+// ------------------------------------------------------------------------------------------------
+// AddEventListener registers a raw js.Value event listener on the element.
 func AddEventListener(elem Handle, event string, cb js.Value) {
 	js.Value(elem).Call("addEventListener", event, cb)
 }
 
 // ------------------------------------------------------------------------------------------------
-// AddEventListenerByID registers an event listener on the element matching the ID.
+// AddEventListenerByID registers a raw js.Value event listener on the element matching the ID.
 func AddEventListenerByID(id, event string, cb js.Value) {
 	elem := GetElementByID(id)
 	if elem.IsValid() {
@@ -325,6 +492,15 @@ func CanvasGetContext(canvas Handle) Handle {
 // cannot be cancelled, and js.Func.Release forbids invoking the function
 // afterwards, so a pending frame would call into a released function.
 func StartAnimationLoop(cb js.Value) (stop func()) {
+	return StartLoop(func() {
+		cb.Invoke()
+	})
+}
+
+// ------------------------------------------------------------------------------------------------
+// StartLoop drives a 60 FPS animation cycle via requestAnimationFrame using a plain Go callback.
+// It returns a stop function; calling it halts the loop and releases the JS closure.
+func StartLoop(fn func()) (stop func()) {
 	var tick js.Func
 	var stopped atomic.Bool
 	tick = js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -332,7 +508,7 @@ func StartAnimationLoop(cb js.Value) (stop func()) {
 			tick.Release()
 			return nil
 		}
-		cb.Invoke()
+		fn()
 		js.Global().Call("requestAnimationFrame", tick)
 		return nil
 	})

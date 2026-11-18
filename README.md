@@ -155,32 +155,36 @@ Each primitive has two forms. The **plain** form uses the active colour set by `
 
 ## Events
 
-Register event listeners on any element with the fluent `On()` method:
+Register event listeners on `dom.Window`, `dom.Document`, any `dom.Handle`, or any `html.Element` builder using plain Go functions (no `syscall/js` required):
 
 ```go
 import (
-	"syscall/js"
-
 	"github.com/ewaldhorn/godom/dom"
 	"github.com/ewaldhorn/godom/html"
 )
 
-clickFn := js.FuncOf(func(this js.Value, args []js.Value) any {
-	dom.Alert("clicked!")
-	return nil
-})
+// On a builder:
 btn := html.Button().
 	Text("Click me").
-	On("click", clickFn.Value). // js.FuncOf returns a js.Func; pass .Value here
+	OnClick(func() {
+		dom.Alert("clicked!")
+	}).
 	AppendTo(dom.Body)
+
+// On the window or any element handle (with access to event properties):
+off := dom.Window.OnEvent("mousedown", func(e dom.Event) {
+	e.PreventDefault()
+	x, y := e.ClientX(), e.ClientY()
+	_ = x
+	_ = y
+})
+_ = off // call off() to remove the listener and release the JS callback
 ```
 
-The `dom` package also provides `AddEventListener` and `AddEventListenerByID` for lower-level event wiring, plus `StartAnimationLoop` for `requestAnimationFrame`-driven rendering:
+The `dom` package also provides `OnByID`, `OnEventByID`, and `OnClickByID` for looking up elements by ID, plus `StartLoop` for `requestAnimationFrame` rendering:
 
 ```go
 import (
-	"syscall/js"
-
 	"github.com/ewaldhorn/godom/canvas"
 	"github.com/ewaldhorn/godom/colour"
 	"github.com/ewaldhorn/godom/dom"
@@ -196,7 +200,7 @@ func main() {
 	var dx, dy int32 = 2, 2
 	red := colour.Colour{R: 255, G: 0, B: 0, A: 255}
 
-	loopFn := js.FuncOf(func(this js.Value, args []js.Value) any {
+	dom.StartLoop(func() {
 		// Update position and bounce off walls
 		x += dx
 		y += dy
@@ -207,9 +211,7 @@ func main() {
 		c.ClearScreen(colour.Black)
 		c.ColourFilledCircle(x, y, 20, red)
 		c.Render()
-		return nil
 	})
-	dom.StartAnimationLoop(loopFn.Value)
 
 	select {}
 }

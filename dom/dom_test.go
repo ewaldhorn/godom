@@ -77,6 +77,10 @@ func init() {
 						}
 						this.listeners[event].push(cb);
 					},
+					removeEventListener: function(event, cb) {
+						if (!this.listeners[event]) return;
+						this.listeners[event] = this.listeners[event].filter(fn => fn !== cb);
+					},
 					focus: function() {
 						this.focused = true;
 					}
@@ -92,12 +96,27 @@ func init() {
 				return mockElements[id];
 			}
 		};
+
+		globalThis.windowListeners = {};
+		globalThis.addEventListener = function(event, cb) {
+			if (!globalThis.windowListeners[event]) {
+				globalThis.windowListeners[event] = [];
+			}
+			globalThis.windowListeners[event].push(cb);
+		};
+		globalThis.removeEventListener = function(event, cb) {
+			if (!globalThis.windowListeners[event]) return;
+			globalThis.windowListeners[event] = globalThis.windowListeners[event].filter(fn => fn !== cb);
+		};
 	`)
 }
 
 func TestInit(t *testing.T) {
 	Init()
 
+	if !Window.IsValid() {
+		t.Error("expected Window to be valid after Init")
+	}
 	if !Document.IsValid() {
 		t.Error("expected Document to be valid after Init")
 	}
@@ -318,6 +337,102 @@ func TestEvents(t *testing.T) {
 	listenersByID.Index(0).Invoke()
 	if !calledByID {
 		t.Error("expected callback to be called via event listener by ID")
+	}
+}
+
+func TestErgonomicEventsAndWrapper(t *testing.T) {
+	Init()
+
+	// 1. Handle.OnClick and removal via off()
+	btn := CreateElement("button")
+	clicks := 0
+	off := btn.OnClick(func() {
+		clicks++
+	})
+
+	listeners := js.Value(btn).Get("listeners").Get("click")
+	if listeners.Length() != 1 {
+		t.Fatalf("expected 1 click listener, got %d", listeners.Length())
+	}
+	listeners.Index(0).Invoke()
+	if clicks != 1 {
+		t.Fatalf("expected clicks=1, got %d", clicks)
+	}
+
+	// Remove listener and verify it is removed and double-off is safe
+	off()
+	off()
+	if js.Value(btn).Get("listeners").Get("click").Length() != 0 {
+		t.Fatal("expected click listener to be removed after off()")
+	}
+
+	// 2. Window.OnEvent with mouse and keyboard properties
+	var gotClientX, gotClientY, gotOffsetX, gotOffsetY, gotButton int
+	var gotKey, gotCode string
+	var gotTarget Handle
+	prevented := false
+	stopped := false
+
+	offWin := Window.OnEvent("mousedown", func(e Event) {
+		e.PreventDefault()
+		e.StopPropagation()
+		gotClientX = e.ClientX()
+		gotClientY = e.ClientY()
+		gotOffsetX = e.OffsetX()
+		gotOffsetY = e.OffsetY()
+		gotButton = e.Button()
+		gotKey = e.Key()
+		gotCode = e.Code()
+		gotTarget = e.Target()
+	})
+	defer offWin()
+
+	mockEv := js.Global().Get("eval").Invoke(`({
+		clientX: 120,
+		clientY: 240,
+		offsetX: 15,
+		offsetY: 30,
+		button: 2,
+		key: "ArrowUp",
+		code: "Space",
+		target: globalThis.document.body,
+		preventDefault: function() { this.defaultPrevented = true; },
+		stopPropagation: function() { this.propagationStopped = true; }
+	})`)
+
+	winListeners := js.Global().Get("windowListeners").Get("mousedown")
+	if winListeners.Length() != 1 {
+		t.Fatalf("expected 1 window mousedown listener, got %d", winListeners.Length())
+	}
+	winListeners.Index(0).Invoke(mockEv)
+
+	prevented = mockEv.Get("defaultPrevented").Bool()
+	stopped = mockEv.Get("propagationStopped").Bool()
+
+	if !prevented || !stopped {
+		t.Errorf("expected PreventDefault and StopPropagation to be called (prevented=%v, stopped=%v)", prevented, stopped)
+	}
+	if gotClientX != 120 || gotClientY != 240 || gotOffsetX != 15 || gotOffsetY != 30 || gotButton != 2 {
+		t.Errorf("unexpected coordinates/button: client=(%d,%d) offset=(%d,%d) button=%d", gotClientX, gotClientY, gotOffsetX, gotOffsetY, gotButton)
+	}
+	if gotKey != "ArrowUp" || gotCode != "Space" {
+		t.Errorf("unexpected key/code: key=%q code=%q", gotKey, gotCode)
+	}
+	if !gotTarget.IsValid() || gotTarget.Get("tagName") != "body" {
+		t.Errorf("expected target to be document.body, got %q", gotTarget.Get("tagName"))
+	}
+
+	// 3. OnClickByID and OnEventByID
+	byIDClicked := false
+	offByID := OnClickByID("ergo-btn-id", func() {
+		byIDClicked = true
+	})
+	defer offByID()
+
+	elByID := GetElementByID("ergo-btn-id")
+	js.Value(elByID).Get("listeners").Get("click").Index(0).Invoke()
+	if !byIDClicked {
+		t.Error("expected OnClickByID callback to fire")
 	}
 }
 

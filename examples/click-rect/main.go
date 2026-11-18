@@ -1,8 +1,6 @@
 package main
 
 import (
-	"syscall/js"
-
 	"github.com/ewaldhorn/godom/canvas"
 	"github.com/ewaldhorn/godom/colour"
 	"github.com/ewaldhorn/godom/dom"
@@ -43,23 +41,16 @@ func main() {
 	redraw(c)
 
 	// Click events on the canvas bubble up to its parent "app" div.
-	// offsetX/offsetY are relative to the event target (the canvas),
+	// OffsetX and OffsetY are relative to the event target (the canvas),
 	// so they map directly to pixel coordinates.
-	// js.FuncOf returns a js.Func; pass .Value where js.Value is expected.
-	clickFn := js.FuncOf(func(this js.Value, args []js.Value) any {
-		x := args[0].Get("offsetX").Int()
-		y := args[0].Get("offsetY").Int()
-
-		// Only toggle if the click landed on the rectangle.
+	dom.OnEventByID("app", "click", func(e dom.Event) {
+		x, y := e.OffsetX(), e.OffsetY()
 		if x >= rectX && x < rectX+rectW && y >= rectY && y < rectY+rectH {
 			isWhite = !isWhite
 			redraw(c)
 		}
-		return nil
 	})
-	dom.AddEventListenerByID("app", "click", clickFn.Value)
 
-	// Block forever — Go's WASM runtime exits as soon as main() returns,
-	// which would tear down all event listeners.
+	// Block forever so Go's WASM runtime and event listeners stay alive.
 	select {}
 }

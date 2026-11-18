@@ -57,6 +57,9 @@ Key methods on `Handle`:
 | `AddClassTo(class string)` | Adds a CSS class via `classList.add` |
 | `RemoveClassFrom(class string)` | Removes a CSS class via `classList.remove` |
 | `ReplaceClasses(classes []string)` | Replaces all classes on the element |
+| `On(event string, fn func()) (off func())` | Registers a plain Go callback on the handle and returns a removal function |
+| `OnEvent(event string, fn func(Event)) (off func())` | Registers a Go callback receiving an `Event` wrapper and returns a removal function |
+| `OnClick(fn func()) (off func())` | Shorthand for `On("click", fn)` |
 
 `Handle` is the glue between the `html` and `dom` packages — `html.Element.Build()` returns a `Handle`, and `html.Element.Child()` / `AppendTo()` both accept one.
 
@@ -105,8 +108,11 @@ Key methods on `Handle`:
 
 | Function | Description |
 |---|---|
-| `AddEventListener(elem Handle, event string, cb js.Value)` | Registers an event listener on a handle |
-| `AddEventListenerByID(id, event string, cb js.Value)` | Registers an event listener on an element looked up by ID |
+| `OnByID(id, event string, fn func()) (off func())` | Registers a Go callback on an element looked up by ID |
+| `OnEventByID(id, event string, fn func(Event)) (off func())` | Registers a Go callback receiving `Event` on an element looked up by ID |
+| `OnClickByID(id string, fn func()) (off func())` | Registers a `"click"` Go callback on an element looked up by ID |
+| `AddEventListener(elem Handle, event string, cb js.Value)` | Registers a raw `js.Value` event listener on a handle |
+| `AddEventListenerByID(id, event string, cb js.Value)` | Registers a raw `js.Value` event listener on an element looked up by ID |
 
 **Logging & dialogs**
 
@@ -119,7 +125,8 @@ Key methods on `Handle`:
 
 | Function | Description |
 |---|---|
-| `StartAnimationLoop(cb js.Value) (stop func())` | Drives a 60 FPS render loop via `requestAnimationFrame`; call the returned function to stop the loop and release the JS closure |
+| `StartLoop(fn func()) (stop func())` | Drives a 60 FPS render loop via `requestAnimationFrame` using a plain Go callback |
+| `StartAnimationLoop(cb js.Value) (stop func())` | Drives a 60 FPS render loop via `requestAnimationFrame` using a raw `js.Value` callback |
 
 #### `Context2D`
 
@@ -159,7 +166,9 @@ Chainable methods on `Element`:
 | `.Attr(key, val string)` | Sets an arbitrary attribute |
 | `.Child(childHandle dom.Handle)` | Appends a child element (accepts the result of `.Build()`) |
 | `.AppendTo(parent dom.Handle)` | Appends this element to a parent handle |
-| `.On(event string, cb js.Value)` | Registers an event listener |
+| `.OnClick(fn func())` | Registers a plain Go `"click"` listener |
+| `.OnEvent(event string, fn func(dom.Event))` | Registers a Go listener receiving `dom.Event` |
+| `.On(event string, cb js.Value)` | Registers a raw `js.Value` event listener |
 | `.Build()` | Returns the underlying `dom.Handle` |
 
 ---

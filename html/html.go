@@ -76,9 +76,23 @@ func (e Element) AppendTo(parent dom.Handle) Element {
 }
 
 // ------------------------------------------------------------------------------------------------
-// On registers an event listener callback on the element.
+// On registers a raw js.Value event listener callback on the element.
 func (e Element) On(event string, cb js.Value) Element {
 	dom.AddEventListener(e.Handle, event, cb)
+	return e
+}
+
+// ------------------------------------------------------------------------------------------------
+// OnClick registers a plain Go callback for "click" events on the element.
+func (e Element) OnClick(fn func()) Element {
+	e.Handle.OnClick(fn)
+	return e
+}
+
+// ------------------------------------------------------------------------------------------------
+// OnEvent registers a Go callback that receives the DOM Event wrapper on the element.
+func (e Element) OnEvent(event string, fn func(dom.Event)) Element {
+	e.Handle.OnEvent(event, fn)
 	return e
 }
 

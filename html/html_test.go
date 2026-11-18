@@ -3,6 +3,8 @@ package html
 import (
 	"syscall/js"
 	"testing"
+
+	"github.com/ewaldhorn/godom/dom"
 )
 
 // ------------------------------------------------------------------------------------------------
@@ -146,5 +148,24 @@ func TestElementOn(t *testing.T) {
 	listeners.Index(0).Invoke()
 	if !called {
 		t.Error("expected callback to be called")
+	}
+
+	// Test OnClick and OnEvent with plain Go functions
+	clicked := false
+	var gotOffsetX int
+	btn2 := Button().
+		OnClick(func() { clicked = true }).
+		OnEvent("mousedown", func(e dom.Event) { gotOffsetX = e.OffsetX() })
+
+	val2 := js.Value(btn2.Handle)
+	val2.Get("listeners").Get("click").Index(0).Invoke()
+	if !clicked {
+		t.Error("expected OnClick callback to be called")
+	}
+
+	mockEv := js.Global().Get("eval").Invoke(`({ offsetX: 42 })`)
+	val2.Get("listeners").Get("mousedown").Index(0).Invoke(mockEv)
+	if gotOffsetX != 42 {
+		t.Errorf("expected OnEvent offsetX=42, got %d", gotOffsetX)
 	}
 }
