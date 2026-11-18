@@ -101,3 +101,7 @@ Now, if you've ever done JavaScript HTML Canvas drawing, this code should look p
 If you run this, you should get:
 
 ![Step 2 Screenshot](step2.png)
+
+## Step 2 is done
+
+Alright, we did a fair bit this time, so when you are ready for it, Step 3 awaits:  [Step 3](../step_3/)
