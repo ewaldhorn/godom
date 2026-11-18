@@ -77,76 +77,130 @@ func (r *rng) intn(n int) int {
 
 If you like, you can go read up more about how this works, but for now, all you need to know is that we can create a random number generator and ask it for a float64 or int value and it is deterministic.
 
-## Getting the canvas configured
+## Drawing a balloon
 
-To be able to draw something, we need an HTML Canvas configured. So we could create a canvas element in our HTML page, but we can also ask Go to do that for us. Since we're trying to do as much Go as possible, let's do that.
-
-In our `main.go`, we can create a new HTML Canvas element like this:
+Right, the next thing we'll need is to render a balloon to the canvas. I've created a new file called `balloon.go` (I'm brilliant at naming things):
 
 ```go
-func main() {
-	// First step is to init the dom
-	dom.Init()
+package main
 
-	// now we can create elements
-	// we won't need the actual container so we ignore the variable
-	_ = html.Div().Class("container").Child(html.H1().Text("Hello from GoDom").Build()).AppendTo(dom.Body)
+import (
+	"github.com/ewaldhorn/godom/dom"
+)
 
-	// create our canvas and draw to it
-	context2d := createAndConfigureHTMLCanvas()
-	drawToTheCanvas(context2d)
+// ------------------------------------------------------------------------------------------------
+const (
+	BASKET_WIDTH      = 100
+	BASKET_HALF_WIDTH = BASKET_WIDTH / 2
+	BASKET_HEIGHT     = 50
+)
 
-	// need to block this from exiting, otherwise wasm terminates our app
-	select {}
-}
-```
+// ------------------------------------------------------------------------------------------------
+func drawBalloon(x, y float64, ctx dom.Context2D) {
 
-I know, those functions don't exist yet, but we'll get to them in a second... First up, let's take a look at what `createAndConfigureHTMLCanvas` does:
+	// first we render the basket
+	ctx.FillStyle("brown")
+	ctx.FillRect(x-BASKET_HALF_WIDTH, y, BASKET_WIDTH, BASKET_HEIGHT)
 
-```go
-func createAndConfigureHTMLCanvas() dom.Context2D {
-	// create a new Div container for our canvas
-	canvasContainer := html.Div().Class("canvas-container")
-
-	// create the actual canvas, set the attributes and background colour
-	myCanvas := html.Canvas()
-	myCanvas.Attr("width", "800")
-	myCanvas.Attr("height", "600")
-	myCanvas.Style("background-color", "blue")
-
-	// apped the canvas to the container, then the container to the html body
-	myCanvas.AppendTo(canvasContainer.Handle)
-	canvasContainer.AppendTo(dom.Body)
-
-	// return the Context2D handle, which is what we need to draw to the canvas
-	return getContext2DfromCanvasHandle(myCanvas.Handle)
-}
-```
-
-That's quite a beast, but, is it, really? We've already created a div container before, so that's not new. Creating an HTML Canvas element seems pretty straight-forward, you create the element, set some attributes and styles, pretty much like you'd do in JavaScript anyway. Then we just append the canvas to the container, the container to the HTML body and... Well, that's almost it. There's a funny `getContext2DfromCanvasHandle` function:
-
-```go
-func getContext2DfromCanvasHandle(canvasHandle dom.Handle) dom.Context2D {
-	if !canvasHandle.IsValid() {
-		panic("godom: getContext2DfromCanvasHandle received an invalid canvas handle")
-	}
-
-	return dom.NewContext2D(canvasHandle)
-}
-```
-Oh, ok, well, that's not too bad, is it? Basically, check if we have a valid handle, then get a Context2D from it and return that.
-
-Finally, we have the `` function:
-
-```go
-func drawToTheCanvas(ctx dom.Context2D) {
-	ctx.FillStyle("yellow")
-	ctx.Arc(10.0, 10.0, 150.0, 0.0, 180.0, false)
+	// now the balloon
+	ctx.FillStyle("#28DD28")
+	ctx.BeginPath()
+	ctx.MoveTo(x, y)                               // middle of the balloon
+	ctx.QuadraticCurveTo(x-90, y-70, x-70, y-170)  // bottom-left
+	ctx.QuadraticCurveTo(x-45, y-250, x, y-250)    // top-left to apex
+	ctx.QuadraticCurveTo(x+45, y-250, x+70, y-170) // apex to right
+	ctx.QuadraticCurveTo(x+90, y-70, x, y)         // right down to middle
+	ctx.ClosePath()
 	ctx.Fill()
 }
 ```
 
-Now, if you've ever done JavaScript HTML Canvas drawing, this code should look pretty familiar! And that's what I tried to do with GoDom: Make it as close to the JavaScript code I'm used to write, just with a bit of a Go flavour mixed in.
+Essentially, it uses Canvas drawing operations to draw a, well, balloon! Notice how it's just Go code, nothing special and that it follows the same conventions you'd use when you write it in JavaScript. The whole idea behind GoDom is to keep it as simple as possible while sticking as close to the JavaScript was as makes sense.
+
+## We need a forest
+
+Yeah yeah, we do, but, err, let's start with a tree first. This is where we're going to use our fancy deterministic random number generator (rng) to create pseudo-random trees. In a file called `tree.go`, put this code:
+
+```go
+package main
+
+import (
+	"math"
+
+	"github.com/ewaldhorn/godom/dom"
+)
+
+// ------------------------------------------------------------------------------------------------
+func drawTrunk(x, y, h float64, ctx dom.Context2D) {
+	// (x, y) = bottom-center of trunk, h = trunk height
+	baseHalf := h * 0.12 // half-width at the base
+	topHalf := h * 0.06  // half-width at the top
+
+	ctx.FillStyle("#775A29")
+	ctx.BeginPath()
+
+	// bottom-left
+	ctx.MoveTo(x-baseHalf, y)
+
+	// left edge curving inward toward the top
+	ctx.QuadraticCurveTo(
+		x-baseHalf*0.7, y-h/2, // control point
+		x-topHalf, y-h, // top-left corner
+	)
+
+	// top edge
+	ctx.LineTo(x+topHalf, y-h)
+
+	// right edge curving back down
+	ctx.QuadraticCurveTo(
+		x+baseHalf*0.7, y-h/2, // control point
+		x+baseHalf, y, // bottom-right
+	)
+
+	ctx.ClosePath()
+	ctx.Fill()
+}
+
+// ------------------------------------------------------------------------------------------------
+func drawLeaves(x, y, h float64, ctx dom.Context2D) {
+	// The seed. Any change to h produces a different tree.
+	r := newRNG(math.Float64bits(h))
+
+	// Canopy geometry, expressed as fractions of h so it scales nicely.
+	cx := x
+	cy := y - h*1.05 // centre of canopy, just above the trunk's top
+	spread := h * 0.55
+
+	// Optional: same-h trees always pick the same shade.
+	greens := []string{"#2E7D32", "#388E3C", "#43A047", "#4CAF50"}
+	shade := greens[r.intn(len(greens))]
+
+	n := 6 + r.intn(5) // 6..10 blobs, but stable for a given h
+	for i := 0; i < n; i++ {
+		// Uniform-ish point in a disc (sqrt for even area distribution).
+		ang := r.float64() * 2 * math.Pi
+		dist := math.Sqrt(r.float64()) * spread
+		bx := cx + math.Cos(ang)*dist
+		by := cy + math.Sin(ang)*dist*0.85 // squash vertically
+
+		br := spread * (0.45 + r.float64()*0.40)
+
+		ctx.FillStyle(shade)
+		ctx.BeginPath()
+		ctx.Arc(bx, by, br, 0, 2*math.Pi, false)
+		ctx.Fill()
+	}
+}
+
+// ------------------------------------------------------------------------------------------------
+// drawTree draws a single tree at the xy coordinate, with the given height.
+// NGL this took me a bit of experimenting to get right, I left comments for my future self.
+// I eventually broke it into sub-functions, because it became a bit much to manage.
+func drawTree(x, y, h float64, ctx dom.Context2D) {
+	drawTrunk(x, y, h, ctx)
+	drawLeaves(x, y, h, ctx)
+}
+```
 
 If you run this, you should get:
 
