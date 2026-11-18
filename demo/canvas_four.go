@@ -341,7 +341,7 @@ func updateCanvasFourHud() {
 		return
 	}
 	count := strconv.Itoa(canvasFourOpCount)
-	elem.SetInnerText(count + " Canvas2D commands batched into 1 WASM→JS call this frame (canvas_cmd) — vs " + count + " individual bridge crossings without it")
+	elem.SetInnerText(count + " Canvas2D commands batched into 1 WASM to JS call this frame (canvas_cmd), vs " + count + " individual bridge crossings without it")
 }
 
 // spawnCanvasFourRipple activates a ripple at (x, y), reusing the oldest ripple slot once all

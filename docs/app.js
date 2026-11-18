@@ -1,17 +1,11 @@
 "use strict";
 
-// Callback IDs for go_invoke_callback (JS -> Go bridge).
+// Callback IDs for go_invoke_callback (JS to Go canvas pointer bridge).
 // Keep the values in sync with the cb* constants in demo/demo.go.
 const CALLBACKS = Object.freeze({
-  ADD_SOMETHING: 0,
-  CLEAR_ASIDE: 1,
-  REFRESH_CANVAS: 2,
-  ANIMATION_TICK: 3,
-  CANVAS_INTERACT: 4,
-  DRUM_CANVAS_CLICK: 5,
-  DRUM_PLAY_PAUSE: 6,
-  CYCLE_GRAVITY: 7,
-  CANVAS_FOUR_INTERACT: 8,
+  CANVAS_INTERACT: 0,
+  DRUM_CANVAS_CLICK: 1,
+  CANVAS_FOUR_INTERACT: 2,
 });
 
 // Retained draw-command buffer dispatcher (canvas_cmd package). Walks a packed byte buffer
@@ -294,155 +288,77 @@ document.addEventListener('keydown', function (e) {
   }
 });
 
-function initializeInteractions() {
-  // Wire click sound to action buttons (skip audioToggleButton — that's the synth)
-  ['addSomethingButton', 'clearAsideButton', 'refreshButton', 'drumPlayButton', 'gravityButton'].forEach(function (id) {
-    const btn = document.getElementById(id);
-    if (btn) btn.addEventListener('click', playClickSound);
+function bindCanvasInteraction(containerId, callbackId, allowDrag) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  let canvas = null;
+  let isDragging = false;
+  let cachedRect = null;
+
+  window.addEventListener("resize", () => { cachedRect = null; });
+  window.addEventListener("scroll", () => { cachedRect = null; }, { passive: true });
+
+  const handlePoint = (clientX, clientY) => {
+    if (!canvas) canvas = container.querySelector("canvas");
+    if (!canvas) return;
+    if (!cachedRect) cachedRect = canvas.getBoundingClientRect();
+    if (cachedRect.width === 0 || cachedRect.height === 0) return;
+
+    const scaleX = canvas.width / cachedRect.width;
+    const scaleY = canvas.height / cachedRect.height;
+    const x = Math.round((clientX - cachedRect.left) * scaleX);
+    const y = Math.round((clientY - cachedRect.top) * scaleY);
+    go_invoke_callback(callbackId, x, y);
+  };
+
+  container.addEventListener("mousedown", (e) => {
+    if (e.target.tagName === "CANVAS") {
+      e.preventDefault();
+      if (allowDrag) isDragging = true;
+      handlePoint(e.clientX, e.clientY);
+    }
   });
 
-  // Gravity mode cycle button — routed through the JS->Go bridge
-  const gravityBtn = document.getElementById("gravityButton");
-  if (gravityBtn) {
-    gravityBtn.addEventListener("click", function () {
-      go_invoke_callback(CALLBACKS.CYCLE_GRAVITY);
-    });
-  }
-
-  // Touch / Click interaction for the physics canvas (canvas two)
-  const canvasTwoDiv = document.getElementById("canvasTwoDiv");
-  if (canvasTwoDiv) {
-    let canvas = null;
-    let isDragging = false;
-    let cachedRectTwo = null;
-
-    window.addEventListener('resize', () => { cachedRectTwo = null; });
-
-    const handleInteraction = (clientX, clientY) => {
-      if (!canvas) canvas = canvasTwoDiv.querySelector("canvas");
-      if (!canvas) return;
-      if (!cachedRectTwo) cachedRectTwo = canvas.getBoundingClientRect();
-      if (cachedRectTwo.width === 0 || cachedRectTwo.height === 0) return;
-      // Map from CSS pixels to canvas pixel space
-      const scaleX = canvas.width / cachedRectTwo.width;
-      const scaleY = canvas.height / cachedRectTwo.height;
-      const x = Math.round((clientX - cachedRectTwo.left) * scaleX);
-      const y = Math.round((clientY - cachedRectTwo.top) * scaleY);
-      go_set_interaction(x, y);
-      go_invoke_callback(CALLBACKS.CANVAS_INTERACT);
-    };
-
-    canvasTwoDiv.addEventListener("mousedown", (e) => {
-      if (e.target.tagName === "CANVAS") {
-        e.preventDefault();
-        isDragging = true;
-        handleInteraction(e.clientX, e.clientY);
-      }
-    });
-
-    // Continue pushing balls while dragging across the canvas
-    canvasTwoDiv.addEventListener("mousemove", (e) => {
+  if (allowDrag) {
+    container.addEventListener("mousemove", (e) => {
       if (isDragging) {
         e.preventDefault();
-        handleInteraction(e.clientX, e.clientY);
+        handlePoint(e.clientX, e.clientY);
       }
     });
-
     document.addEventListener("mouseup", () => { isDragging = false; });
+  }
 
-    canvasTwoDiv.addEventListener("touchstart", (e) => {
+  container.addEventListener("touchstart", (e) => {
+    if (e.target.tagName === "CANVAS") {
+      e.preventDefault();
+      const touch = e.touches[0];
+      handlePoint(touch.clientX, touch.clientY);
+    }
+  }, { passive: false });
+
+  if (allowDrag) {
+    container.addEventListener("touchmove", (e) => {
       if (e.target.tagName === "CANVAS") {
         e.preventDefault();
         const touch = e.touches[0];
-        handleInteraction(touch.clientX, touch.clientY);
-      }
-    }, { passive: false });
-
-    // Continuous touch drag
-    canvasTwoDiv.addEventListener("touchmove", (e) => {
-      if (e.target.tagName === "CANVAS") {
-        e.preventDefault();
-        const touch = e.touches[0];
-        handleInteraction(touch.clientX, touch.clientY);
+        handlePoint(touch.clientX, touch.clientY);
       }
     }, { passive: false });
   }
+}
 
-  // Touch / Click interaction for the sequencer canvas (canvas three)
-  const canvasThreeDiv = document.getElementById("canvasThreeDiv");
-  if (canvasThreeDiv) {
-    let canvas = null;
-    let cachedRectThree = null;
+function initializeInteractions() {
+  // Wire click sound to action buttons (skip audioToggleButton, which controls the synth)
+  ["addSomethingButton", "clearAsideButton", "refreshButton", "drumPlayButton", "gravityButton"].forEach((id) => {
+    const btn = document.getElementById(id);
+    if (btn) btn.addEventListener("click", playClickSound);
+  });
 
-    window.addEventListener('resize', () => { cachedRectThree = null; });
-
-    const handleInteraction = (clientX, clientY) => {
-      if (!canvas) canvas = canvasThreeDiv.querySelector("canvas");
-      if (!canvas) return;
-      if (!cachedRectThree) cachedRectThree = canvas.getBoundingClientRect();
-      if (cachedRectThree.width === 0 || cachedRectThree.height === 0) return;
-      // Map from CSS pixels to canvas pixel space
-      const scaleX = canvas.width / cachedRectThree.width;
-      const scaleY = canvas.height / cachedRectThree.height;
-      const x = Math.round((clientX - cachedRectThree.left) * scaleX);
-      const y = Math.round((clientY - cachedRectThree.top) * scaleY);
-      go_set_interaction(x, y);
-      go_invoke_callback(CALLBACKS.DRUM_CANVAS_CLICK);
-    };
-
-    canvasThreeDiv.addEventListener("mousedown", (e) => {
-      if (e.target.tagName === "CANVAS") {
-        e.preventDefault();
-        handleInteraction(e.clientX, e.clientY);
-      }
-    });
-
-    canvasThreeDiv.addEventListener("touchstart", (e) => {
-      if (e.target.tagName === "CANVAS") {
-        e.preventDefault();
-        const touch = e.touches[0];
-        handleInteraction(touch.clientX, touch.clientY);
-      }
-    }, { passive: false });
-  }
-
-  // Touch / Click interaction for the Grove & Pond canvas (canvas four)
-  const canvasFourDiv = document.getElementById("canvasFourDiv");
-  if (canvasFourDiv) {
-    let canvas = null;
-    let cachedRectFour = null;
-
-    window.addEventListener('resize', () => { cachedRectFour = null; });
-
-    const handleInteraction = (clientX, clientY) => {
-      if (!canvas) canvas = canvasFourDiv.querySelector("canvas");
-      if (!canvas) return;
-      if (!cachedRectFour) cachedRectFour = canvas.getBoundingClientRect();
-      if (cachedRectFour.width === 0 || cachedRectFour.height === 0) return;
-      // Map from CSS pixels to canvas pixel space
-      const scaleX = canvas.width / cachedRectFour.width;
-      const scaleY = canvas.height / cachedRectFour.height;
-      const x = Math.round((clientX - cachedRectFour.left) * scaleX);
-      const y = Math.round((clientY - cachedRectFour.top) * scaleY);
-      go_set_interaction(x, y);
-      go_invoke_callback(CALLBACKS.CANVAS_FOUR_INTERACT);
-    };
-
-    canvasFourDiv.addEventListener("mousedown", (e) => {
-      if (e.target.tagName === "CANVAS") {
-        e.preventDefault();
-        handleInteraction(e.clientX, e.clientY);
-      }
-    });
-
-    canvasFourDiv.addEventListener("touchstart", (e) => {
-      if (e.target.tagName === "CANVAS") {
-        e.preventDefault();
-        const touch = e.touches[0];
-        handleInteraction(touch.clientX, touch.clientY);
-      }
-    }, { passive: false });
-  }
+  bindCanvasInteraction("canvasTwoDiv", CALLBACKS.CANVAS_INTERACT, true);
+  bindCanvasInteraction("canvasThreeDiv", CALLBACKS.DRUM_CANVAS_CLICK, false);
+  bindCanvasInteraction("canvasFourDiv", CALLBACKS.CANVAS_FOUR_INTERACT, false);
 
   // Show controls as flex
   const controls = document.getElementById("controls");
