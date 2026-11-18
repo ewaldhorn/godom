@@ -202,6 +202,8 @@ func drawTree(x, y, h float64, ctx dom.Context2D) {
 }
 ```
 
-If you run this, you should get:
+Righto, that's pretty decent actually. Let's go ahead and run it..
+
+You should get this in your browser:
 
 ![Step 3 Screenshot](step3.png)
