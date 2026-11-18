@@ -207,3 +207,7 @@ Righto, that's pretty decent actually. Let's go ahead and run it..
 You should get this in your browser:
 
 ![Step 3 Screenshot](step3.png)
+
+## Step 4 is next
+
+When you are ready for it, Step 4 awaits:  [Step 4](../step_4/)
