@@ -4,6 +4,8 @@
 
 Use it to build interactive browser apps entirely in Go — declarative element building, pixel-level canvas drawing, event handling, and audio pre-rendering, with no JavaScript frameworks required.  This is one of the tools I use for [commercial work](https://nofuss.co.za/webassembly-performance-consulting/) when I use Web Assembly to address bottlenecks in web applications. For example, the [retirement drawdown calculator](https://nofuss.co.za/tools/drawdown/) I have on my site is built using GoDom!
 
+Out of interest, I also used it to build [Terran Raiders](https://nofuss.co.za/games/terran_raiders/), a tactical squad-based realtime strategy game that runs entirely in your browser. Then game is built using vanilla Go with the GoDom package providing DOM and Canvas access. If you like old-school tactical games, Terran Raiders might just be a bit of fun for you.
+
 ---
 
 ![Godom Preview](preview.png)
