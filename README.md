@@ -2,7 +2,7 @@
 
 `godom` is a dependency-free wrapper around the browser DOM and Canvas 2D APIs, written in pure Go. It targets standard WebAssembly (`GOOS=js GOARCH=wasm`) via Go 1.27's `syscall/js` layer.
 
-Use it to build interactive browser apps entirely in Go — declarative element building, pixel-level canvas drawing, event handling, and audio pre-rendering, with no JavaScript frameworks required.
+Use it to build interactive browser apps entirely in Go — declarative element building, pixel-level canvas drawing, event handling, and audio pre-rendering, with no JavaScript frameworks required.  This is one of the tools I use for [commercial work](https://nofuss.co.za/webassembly-performance-consulting/) when I use Web Assembly to address bottlenecks in web applications. For example, the [retirement drawdown calculator](https://nofuss.co.za/tools/drawdown/) I have on my site is built using GoDom!
 
 ---
 
