@@ -292,6 +292,8 @@ Then open `http://localhost:9001`.
 
 I also have some basic tutorials I'm working on in the [`conversions/`](conversions) directory that you might want to check out at some point. These are a WIP so check back now and then.
 
+![Learn HTML Canvas Tutorial](learn_html_canvas_tutorial.png)
+
 ---
 
 ## Benchmarking
