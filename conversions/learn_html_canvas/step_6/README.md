@@ -106,14 +106,84 @@ func (t *TreePosition) Update() {
 
 Here we decrease the X position of the tree and check if it's entirely off the screen.  If it is, put it on the far right hand side by changing the X position and then give it a random size. And with that we create the illusion of more trees appearing, when, in fact, we are just recycling the same variables over and over.
 
+Nice. Now that we can do this for a tree, we can make many trees and start to get some serious traction for our game. Still in `tree_manager.go`, we'll add a new struct to store our tree positions:
 
+```go
+type TreeManager struct {
+	trees []TreePosition
+}
+```
+All we need to do is keep track of a list of TreePosition structs. With a few functions, we can make this work for us. Let's start by creating a function that will set up our list of trees:
+
+```go
+func NewTreeManager() *TreeManager {
+	mngr := &TreeManager{
+		trees: make([]TreePosition, NUM_TREES),
+	}
+	mngr.initTrees()
+
+	return mngr
+}
+```
+
+In `NewTreeManager`, we create a new struct of the type TreeManager, give it a list of trees and initialise those trees before returning the pointer to our struct. Notice how the number of trees is dynamically controlled by our constant `NUM_TREES`. The `initTrees` function creates the trees by spacing them around the screen and varying the height:
+
+```go
+func (t *TreeManager) initTrees() {
+	for pos := range t.trees {
+		t.trees[pos].X = float64(TREE_SPACING * pos)
+		t.trees[pos].Size = randomTreeSize()
+	}
+}
+```
+
+With our trees created, we need a way to update and render them, so we'll add those functions. `Update` just loops through the trees and calls `Update` on each of them. Then `Render` takes a dom.Context2D parameter and uses that to loop through the trees and render them:
+
+```go
+func (t *TreeManager) Update() {
+	for pos := range t.trees {
+		t.trees[pos].Update()
+	}
+}
+
+func (t *TreeManager) Render(ctx dom.Context2D) {
+	for pos := range t.trees {
+		drawTree(t.trees[pos].X, canvasHeight, float64(t.trees[pos].Size), ctx)
+	}
+}
+```
+
+So now we have our tree manager in place, I guess it's time to make it work for us. In `main.go`, we have to make a few changes:
+
+```go
+func main() {
+	dom.Init()
+
+	myCanvas, context2d := createAndConfigureHTMLCanvas()
+	registerCanvasEventHandlers(myCanvas)
+
+	treeManager := NewTreeManager()
+
+	stopLoop := dom.StartLoop(func() {
+		updateScene()
+		treeManager.Update()
+		renderScene(context2d)
+		treeManager.Render(context2d)
+	})
+	defer stopLoop()
+
+	select {}
+}
+```
+
+We create a new tree manager, add it to the loop and well, that's that, really!
 
 You should get this in your browser:
 
-![Step 5 Screenshot](step5.png)
+![Step 6 Screenshot](step6.png)
 
-If you run into issues, check your code against the repo, there might be something missing.
+If you run into issues, check your code against the repo, we made a lot of changes!
 
-## Step 5 is done, Step 6 is next
+## Step 6 is done, Step 7 is next
 
-Let's go to Step 6 when you are ready:  [Step 6](../step_6/)
+Let's go to Step 6 when you are ready:  [Step 7](../step_7/)
