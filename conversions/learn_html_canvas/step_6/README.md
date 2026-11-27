@@ -186,4 +186,4 @@ If you run into issues, check your code against the repo, we made a lot of chang
 
 ## Step 6 is done, Step 7 is next
 
-Let's go to Step 6 when you are ready:  [Step 7](../step_7/)
+Let's go to Step 7 when you are ready:  [Step 7](../step_7/)
