@@ -6,6 +6,8 @@ Use it to build interactive browser apps entirely in Go — declarative element 
 
 Out of interest, I also used it to build [Terran Raiders](https://nofuss.co.za/games/terran_raiders/), a tactical squad-based realtime strategy game that runs entirely in your browser. Then game is built using vanilla Go with the GoDom package providing DOM and Canvas access. If you like old-school tactical games, Terran Raiders might just be a bit of fun for you.
 
+There's also a simple quick start and docs on my website at [https://nofuss.co.za/godom/](https://nofuss.co.za/godom/) if you want to see how to quickly just get up and running or are curious to see how I use this for games and production applications.
+
 ---
 
 ![Godom Preview](preview.png)
